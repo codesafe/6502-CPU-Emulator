@@ -42,7 +42,7 @@ BYTE N : 1; //7: Negative
 	TXS TYA
 */
 
-// LDA
+// LDA (LoaD Accumulator)
 #define LDA_IM		0xA9
 #define LDA_ZP		0xA5
 #define LDA_ZPX		0xB5
@@ -51,6 +51,13 @@ BYTE N : 1; //7: Negative
 #define LDA_ABSY	0xB9
 #define LDA_INDX	0xA1
 #define LDA_INDY	0xB1
+
+// LDX (LoaD X register)
+#define LDX_IM		0xA2
+#define LDX_ZP		0xA6
+#define LDX_ZPY		0xB6
+#define LDX_ABS		0xAE
+#define LDX_ABSY	0xBE
 
 
 //////////////////////////////////////	Memory
@@ -109,30 +116,79 @@ bool GetFlag(BYTE flag)
 
 
 
-
-
 void Run(int cycle)
 {
 	while (cycle > 0)
 	{
 		// Get instruction from memory
 		BYTE inst = FetchByte(cycle);
-
-		if (inst == LDA_IM)
+		switch (inst)
 		{
-			// Loads a byte of memory into the accumulator setting the zeroand negative flags as appropriate.
-			// LDA #10 : Load 10 ($0A) into the accumulator
-			A = FetchByte(cycle);
-			// A가 0 이면 Zero flag
-			SetFlag(ZERO_FLAG, A == 0);
+			// LDA
+			case LDA_IM :
+			{
+				// Loads a byte of memory into the accumulator setting the zeroand negative flags as appropriate.
+				// LDA #10 : Load 10 ($0A) into the accumulator
+				A = FetchByte(cycle);
+				// A가 0 이면 Zero flag
+				SetFlag(ZERO_FLAG, A == 0);
+				// A가 Negative Flag 면 Negative flag Set
+				SetFlag(NEGATIVE, A & NEGATIVE);
+			}
+			break;
 
-			// A가 Negative Flag 면 Negative flag Set
-			SetFlag(NEGATIVE, A & NEGATIVE);
+			case LDA_ZP :
+				break;
+
+			case LDA_ZPX :
+				break;
+
+			case LDA_ABS :
+				break;
+
+			case LDA_ABSX :
+				break;
+
+			case LDA_ABSY :
+				break;
+
+			case LDA_INDX :
+				break;
+
+			case LDA_INDY :
+				break;
+
+			// LDX
+			case LDX_IM :
+			{
+				X = FetchByte(cycle);
+				// X가 0 이면 Zero flag
+				SetFlag(ZERO_FLAG, A == 0);
+				// X가 Negative Flag 면 Negative flag Set
+				SetFlag(NEGATIVE, A & NEGATIVE);
+
+			}
+			break;
+
+			case LDX_ZP :
+				break;
+
+			case LDX_ZPY:
+				break;
+
+			case LDX_ABS:
+				break;
+
+			case LDX_ABSY:
+				break;
+
+
+
+			default:
+				break;
 		}
-
 	}
 }
-
 
 int main()
 {
@@ -140,8 +196,6 @@ int main()
 	InitCPU();
 
 	// TEST : 명령어 데이터 셋
-
-
 	Run(2);
 
 	return 0;
