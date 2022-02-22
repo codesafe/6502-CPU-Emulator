@@ -9,7 +9,6 @@
 #define WORD		unsigned short
 #define MEMORY_SIZE	1024 * 64	// 64k
 
-
 // Flag Define : PS
 #define CARRY_FLAG				0
 #define ZERO_FLAG				1
@@ -30,8 +29,6 @@ BYTE B : 1; //4: Break
 BYTE V : 1; //6: Overflow
 BYTE N : 1; //7: Negative
 */
-
-
 
 // Instruction
 /*
@@ -59,18 +56,10 @@ BYTE N : 1; //7: Negative
 #define LDX_ABS		0xAE
 #define LDX_ABSY	0xBE
 
-
-//////////////////////////////////////	Memory
+////////////////////////////////////////////////////////////////////////////	
 
 // Memory
-BYTE memory[MEMORY_SIZE];
-
-void InitMemory()
-{
-	memset(memory, 0, MEMORY_SIZE);
-}
-
-//////////////////////////////////////	CPU
+BYTE* memory = NULL;
 
 // Registor
 BYTE	A;		// Accumulator
@@ -79,6 +68,25 @@ BYTE	Y;
 BYTE	PS;		// Processor Status : Flag
 BYTE	SP;		// Stack Pointer
 WORD	PC;		// program control
+
+////////////////////////////////////////////////////////////////////////////	Memory
+
+void InitMemory()
+{
+	memory = new BYTE[MEMORY_SIZE];
+	memset(memory, 0, MEMORY_SIZE);
+}
+
+void ReleaseMemory()
+{
+	delete[] memory;
+	memory = NULL;
+}
+
+
+////////////////////////////////////////////////////////////////////////////	CPU
+
+
 
 
 void InitCPU()
@@ -112,14 +120,28 @@ bool GetFlag(BYTE flag)
 	return SP & (0x01 << flag);
 }
 
-//////////////////////////////////////	
+void SetZeroNegative()
+{
+	// A가 0 이면 Zero flag
+	SetFlag(ZERO_FLAG, A == 0);
+	// A가 Negative Flag 면 Negative flag Set
+	SetFlag(NEGATIVE, A & NEGATIVE);
+}
 
+////////////////////////////////////////////////////////////////////////////	
 
 
 void Run(int cycle)
 {
 	while (cycle > 0)
 	{
+		// CPU 명령어 처리 순서
+		// FETCH and increment the Program Counter
+		// DECODE against the addressing mode
+		// EXECUTE the instruction
+		// update ticks count
+
+
 		// Get instruction from memory
 		BYTE inst = FetchByte(cycle);
 		switch (inst)
@@ -129,19 +151,39 @@ void Run(int cycle)
 			{
 				// Loads a byte of memory into the accumulator setting the zeroand negative flags as appropriate.
 				// LDA #10 : Load 10 ($0A) into the accumulator
+
+				// address node (immediate) : 상수값을 A로 ..
 				A = FetchByte(cycle);
-				// A가 0 이면 Zero flag
-				SetFlag(ZERO_FLAG, A == 0);
-				// A가 Negative Flag 면 Negative flag Set
-				SetFlag(NEGATIVE, A & NEGATIVE);
+				SetZeroNegative();
 			}
 			break;
 
 			case LDA_ZP :
-				break;
+			{
+				// $0000 to $00FF
+				// Zero page에서 읽어서 A로
+				A = memory[FetchByte(cycle)];
+				SetZeroNegative(); // ?? 필요?
+			}
+			break;
 
+			/*
+				인덱스 제로 페이지 어드레싱을 사용하는 명령어에 의해 접근될 주소는 명령어로부터 8비트 제로 
+				페이지 어드레스를 가져와서 X 레지스터의 현재 값을 더함으로써 계산된다. 예를 들어, X 레지스터에 
+				$0F가 포함되어 있고 LDA $80,X 명령이 실행되면 누적기는 $008F(예: $80 + $0F => $8F)에서 
+				로드됩니다.
+				NB:주소 계산은 기본 주소와 레지스터의 합계가 $FF를 초과할 경우 래핑됩니다. 
+				마지막 예를 반복하지만 X 레지스터에 $FF가 있는 경우 누적기는 $017F가 아니라 
+				$007F(예: $80 + $FF => $7F)에서 로드됩니다.
+			*/
 			case LDA_ZPX :
-				break;
+			{
+				BYTE zp = FetchByte(cycle);
+				zp += X;	// zp + X 레지스터
+				A = memory[zp];
+				SetZeroNegative(); // ?? 필요?
+			}
+			break;
 
 			case LDA_ABS :
 				break;
@@ -198,5 +240,6 @@ int main()
 	// TEST : 명령어 데이터 셋
 	Run(2);
 
+	ReleaseMemory();
 	return 0;
 }
