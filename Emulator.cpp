@@ -140,7 +140,7 @@ void Run(int cycle)
 		// DECODE against the addressing mode
 		// EXECUTE the instruction
 		// update ticks count
-
+		 
 
 		// Get instruction from memory
 		BYTE inst = FetchByte(cycle);
@@ -185,17 +185,59 @@ void Run(int cycle)
 			}
 			break;
 
+			// 절대 주소 지정을 사용하는 명령어는 대상 위치를 식별하기 위해 전체 16 비트 주소를 포함합니다.
 			case LDA_ABS :
-				break;
+			{
+				BYTE lo = FetchByte(cycle);
+				BYTE hi = FetchByte(cycle);
+				WORD addr = (hi << 8) | lo;
+				A = memory[addr];
+			}
+			break;
 
+			/*
+				X 레지스터 인덱스 절대 주소 지정을 사용하는 명령어에 의해 접근되는 주소는 명령어로부터 16비트 주소를 
+				가져와서 X 레지스터의 내용을 추가함으로써 계산된다. 예를 들어, X에 $92가 포함되어 있으면
+				STA $2000,X 명령은 축열조를 $2092(예: $2000 + $92)로 저장합니다.
+			*/
 			case LDA_ABSX :
-				break;
+			{
+				BYTE lo = FetchByte(cycle);
+				BYTE hi = FetchByte(cycle);
+				WORD addr = ((hi << 8) | lo) + X;
+				if ((addr & 0xFF00) != (hi << 8))
+				{
+					// page 넘어감 / carry bit set ?
+				}
+				else
+				{
+					// page 안 넘어감
+				}
+			}
+			break;
 
 			case LDA_ABSY :
-				break;
+			{
+				BYTE lo = FetchByte(cycle);
+				BYTE hi = FetchByte(cycle);
+				WORD addr = ((hi << 8) | lo) + Y;
+				if ((addr & 0xFF00) != (hi << 8))
+				{
+					// page 넘어감 / carry bit set ?
+				}
+				else
+				{
+					// page 안 넘어감
+				}
+			}
+			break;
 
 			case LDA_INDX :
-				break;
+			{
+				BYTE lo = FetchByte(cycle);
+				BYTE hi = FetchByte(cycle);
+			}
+			break;
 
 			case LDA_INDY :
 				break;
