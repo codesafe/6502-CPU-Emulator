@@ -139,7 +139,14 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="6502CPU.cpp" />
+    <ClCompile Include="6502Memory.cpp" />
     <ClCompile Include="Emulator.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="6502CPU.h" />
+    <ClInclude Include="6502Memory.h" />
+    <ClInclude Include="Predef.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
