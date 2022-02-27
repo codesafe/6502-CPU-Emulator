@@ -71,13 +71,15 @@ bool CPU::GetFlag(BYTE flag)
 }
 
 
-void CPU::SetZeroNegative()
+void CPU::SetZeroNegative(BYTE Register)
 {
 	// A가 0 이면 Zero flag
-	SetFlag(ZERO_FLAG, A == 0);
+	//SetFlag(ZERO_FLAG, A == 0);
+	Flag.Z = (Register == 0);
 
 	// A가 Negative Flag 면 Negative flag Set
-	SetFlag(NEGATIVE, A & NEGATIVE);
+	//SetFlag(NEGATIVE, A & NEGATIVE);
+	Flag.N = (Register & NEGATIVE) > 0;
 }
 
 BYTE CPU::Fetch(Memory& mem, int &cycle)
@@ -106,6 +108,13 @@ BYTE CPU::ReadMem(Memory& mem, WORD addr, int& cycle)
 	return c;
 }
 
+WORD CPU::ReadWordMem(Memory& mem, WORD addr, int& cycle)
+{
+	WORD c = mem.ReadWord(addr);
+	cycle -= 2;
+	return c;
+}
+
 void CPU::WordWriteMem(Memory& mem, WORD value, int addr, int& cycle)
 {
 	mem.WriteWord(value, addr);
@@ -123,7 +132,7 @@ void CPU::Run(Memory &mem, int &cycle)
 			case LDA_IM: // 2 cycle
 			{
 				A = Fetch(mem, cycle);
-				SetZeroNegative();
+				SetZeroNegative(A);
 			}
 			break;
 
@@ -135,7 +144,7 @@ void CPU::Run(Memory &mem, int &cycle)
 				// Zero page읽으면서 cycle 소모
 				A = ReadMem(mem, zpa, cycle);
 
-				SetZeroNegative();
+				SetZeroNegative(A);
 			}
 			break;
 
@@ -149,7 +158,7 @@ void CPU::Run(Memory &mem, int &cycle)
 				// Zero page읽으면서 cycle 소모
 				A = ReadMem(mem, zpa, cycle);
 
-				SetZeroNegative();
+				SetZeroNegative(A);
 			}
 			break;
 
@@ -157,57 +166,53 @@ void CPU::Run(Memory &mem, int &cycle)
 			case LDA_ABS: // 4 cycle
 			{
 				WORD addr = FetchWord(mem, cycle);
-
 				A = ReadMem(mem, addr, cycle);
-				SetZeroNegative();
+				SetZeroNegative(A);
 			}
 			break;
 
-			/*
-				X 레지스터 인덱스 절대 주소 지정을 사용하는 명령어에 의해 접근되는 주소는 명령어로부터 16비트 주소를
-				가져와서 X 레지스터의 내용을 추가함으로써 계산된다. 예를 들어, X에 $92가 포함되어 있으면
-				STA $2000,X 명령은 축열조를 $2092(예: $2000 + $92)로 저장합니다.
-			*/
 			case LDA_ABSX:// 4 cycle / 페이지 넘어가면 1 cycle 추가
 			{
+				// 메모리엑세스 페이지를 넘어가면 추가 사이클이 소요됨 (하드웨어가 그렇게 만들어짐?)
 				WORD addr = FetchWord(mem, cycle);
-				if ( (addr ^ (addr + X)) >> 8 )
-				{
-					// page 넘어감
-					cycle--;
-				}
+				if ( (addr + X) - addr >= 0xFF )
+					cycle--;	// page 넘어감
 
 				A = ReadMem(mem, addr + X, cycle);
-				SetZeroNegative();
+				SetZeroNegative(A);
 			}
 			break;
 
 			case LDA_ABSY:
 			{
 				WORD addr = FetchWord(mem, cycle);
-				if ((addr ^ (addr + Y)) >> 8)
-				{
-					// page 넘어감
-					cycle--;
-				}
+				if ((addr + Y) - addr >= 0xFF)
+					cycle--;	// page 넘어감
 
 				A = ReadMem(mem, addr, cycle);
-				SetZeroNegative();
+				SetZeroNegative(A);
 
 			}
 			break;
 
 			case LDA_INDX:
 			{
-				BYTE lo = Fetch(mem, cycle);
-				BYTE hi = Fetch(mem, cycle);
+				BYTE t = Fetch(mem, cycle);
+				WORD inx = t + X;
+
+				WORD addr = ReadWordMem(mem, inx, cycle);
+				A = ReadMem(mem, addr, cycle);
+
+				SetZeroNegative(A);
 			}
 			break;
 
 			case LDA_INDY:
 				break;
 
-				// LDX
+			//////////////////////////////////////////////////////////////////////////////
+
+			// LDX
 			case LDX_IM:
 			{
 				X = Fetch(mem, cycle);

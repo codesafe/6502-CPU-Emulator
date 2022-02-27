@@ -53,11 +53,41 @@ void TEST_LDA_ABSX()
 	cpu.SetRegister(REGISTER_X, 1);
 
 	mem.SetByte(0xFFFC, LDA_ABSX);
-	mem.SetByte(0xFFFD, 0xFF);
+	mem.SetByte(0xFFFD, 0x80);
 	mem.SetByte(0xFFFE, 0x44);
 
-	mem.SetByte(0x4500, 0x88);
+	mem.SetByte(0x4481, 0x88);
 
+}
+
+int TEST_LDA_INDX()
+{
+	cpu.SetRegister(REGISTER_X, 0x04);
+
+	mem.SetByte(0xFFFC, LDA_INDX);
+	mem.SetByte(0xFFFD, 0x02);
+
+	mem.SetByte(0x0006, 0x00);	// 0x02 + 0x04
+	mem.SetByte(0x0007, 0x80);
+
+	mem.SetByte(0x8000, 0x77);
+
+	return 6;
+}
+
+int TEST_LDA_INDY()
+{
+	cpu.SetRegister(REGISTER_Y, 0x04);
+
+	mem.SetByte(0xFFFC, LDA_INDY);
+	mem.SetByte(0xFFFD, 0x02);
+
+	mem.SetByte(0x0006, 0x00);	// 0x02 + 0x04
+	mem.SetByte(0x0007, 0x80);
+
+	mem.SetByte(0x8000, 0x77);
+
+	return 6;
 }
 
 
@@ -77,9 +107,9 @@ int main()
 	// load some code to memory
 	//TEST_LDA_ZP();
 
-	TEST_LDA_ABSX();
+	int cycle = TEST_LDA_INDX();
 
-	RunMachine(5);
+	RunMachine(cycle);
 
 	mem.Destroy();
 	return 0;

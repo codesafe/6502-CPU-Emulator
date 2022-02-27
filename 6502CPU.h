@@ -63,6 +63,19 @@ BYTE N : 1; //7: Negative
 // JSR (Jump to Subroutine)
 #define JSR			0x20
 
+
+struct StatusFlags
+{
+	BYTE C : 1;	//0: Carry Flag	
+	BYTE Z : 1;	//1: Zero Flag
+	BYTE I : 1; //2: Interrupt disable
+	BYTE D : 1; //3: Decimal mode
+	BYTE B : 1; //4: Break
+	BYTE Unused : 1; //5: Unused
+	BYTE V : 1; //6: Overflow
+	BYTE N : 1; //7: Negative
+};
+
 class CPU
 {
 private:
@@ -70,9 +83,15 @@ private:
 	BYTE	A;		// Accumulator
 	BYTE	X;		// Index Registor
 	BYTE	Y;
-	BYTE	PS;		// Processor Status : Flag
+	//BYTE	PS;		// Processor Status : Flag
 	WORD	SP;		// Stack Pointer
 	WORD	PC;		// program control
+
+	union
+	{
+		BYTE PS;
+		StatusFlags Flag;
+	};
 
 public:
 	CPU();
@@ -88,10 +107,12 @@ public:
 	bool GetFlag(BYTE flag);
 	void SetFlag(BYTE flag, bool set);
 
-	void SetZeroNegative();
+	void SetZeroNegative(BYTE Register);
 	BYTE Fetch(Memory& mem, int& cycle);
 
 	BYTE ReadMem(Memory& mem, WORD add, int& cycle);
+	WORD ReadWordMem(Memory& mem, WORD addr, int& cycle);
+
 	WORD FetchWord(Memory& mem, int& cycle);
 	void WordWriteMem(Memory& mem, WORD value, int addr, int& cycle);
 

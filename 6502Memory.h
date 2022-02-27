@@ -36,6 +36,14 @@ class Memory
 // 			return memory[addr];
 // 		}
 
+		WORD ReadWord(int addr)
+		{
+			BYTE m0 = memory[addr];
+			BYTE m1 = memory[addr+1];
+			WORD w = (m0 >> 8) + m1;
+			return w;
+		}
+
 		void WriteWord(WORD value, int addr)
 		{
 			memory[addr] = value & 0xFF;
