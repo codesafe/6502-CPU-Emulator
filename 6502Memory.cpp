@@ -18,6 +18,7 @@ Memory::~Memory()
 void Memory::Create()
 {
 	memory = new BYTE[MEMORY_SIZE];
+	memset(memory, 0, MEMORY_SIZE);
 }
 
 void Memory::Destroy()
@@ -26,7 +27,3 @@ void Memory::Destroy()
 	memory = NULL;
 }
 
-BYTE Memory::Fetch()
-{
-
-}

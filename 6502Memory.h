@@ -16,7 +16,31 @@ class Memory
 		void Create();
 		void Destroy();
 
-		BYTE Fetch();
+		BYTE GetByte(int addr) const
+		{
+			return memory[addr];
+		}
+
+		void SetByte(int addr, BYTE value)
+		{
+			memory[addr] = value;
+		}
+
+// 		BYTE operator [] (int addr) const
+// 		{
+// 			return memory[addr];
+// 		}
+// 
+// 		BYTE& operator[] (int addr)
+// 		{
+// 			return memory[addr];
+// 		}
+
+		void WriteWord(WORD value, int addr)
+		{
+			memory[addr] = value & 0xFF;
+			memory[addr+1] = value >> 8;
+		}
 };
 
 

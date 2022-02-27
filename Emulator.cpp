@@ -2,8 +2,96 @@
 	MOS 6502 CPU Emulator
 */
 
+#if 1
+
+#include "6502CPU.h"
+#include "6502Memory.h"
+
+// 6502 CPU
+CPU cpu;
+// Memory
+Memory mem;
+
+
+void TEST_LDA_ZP()
+{
+	mem.SetByte(0xFFFC, LDA_ZP);
+	mem.SetByte(0xFFFD, 0x10);
+	mem.SetByte(0xFFFE, 0xAD);
+}
+
+void TEST_LDA_ZPX()
+{
+	mem.SetByte(0xFFFC, LDA_ZPX);
+	mem.SetByte(0xFFFD, 0x10);
+}
+
+
+void TEST_JSR()
+{
+	mem.SetByte(0xFFFC, JSR);
+	mem.SetByte(0xFFFD, 0x40);
+	mem.SetByte(0xFFFE, 0x40);
+
+	mem.SetByte(0x4040, LDA_IM);
+	mem.SetByte(0x4041, 0x84);
+
+}
+
+void TEST_LDA_ABS()
+{
+	mem.SetByte(0xFFFC, LDA_ABS);
+	mem.SetByte(0xFFFD, 0x80);
+	mem.SetByte(0xFFFE, 0x44);
+	
+	mem.SetByte(0x4480, 0x88);
+
+}
+
+void TEST_LDA_ABSX()
+{
+	cpu.SetRegister(REGISTER_X, 1);
+
+	mem.SetByte(0xFFFC, LDA_ABSX);
+	mem.SetByte(0xFFFD, 0xFF);
+	mem.SetByte(0xFFFE, 0x44);
+
+	mem.SetByte(0x4500, 0x88);
+
+}
+
+
+//////////////////////////////////////////////////////////////////////////////
+
+void RunMachine(int cycle)
+{
+	cpu.Run(mem, cycle);
+}
+
+
+int main()
+{
+	cpu.Reset();
+	mem.Create();
+
+	// load some code to memory
+	//TEST_LDA_ZP();
+
+	TEST_LDA_ABSX();
+
+	RunMachine(5);
+
+	mem.Destroy();
+	return 0;
+}
+
+#else
+
+
 #include <stdio.h>
 #include <memory.h>
+
+
 
 #define BYTE		unsigned char
 #define WORD		unsigned short
@@ -94,8 +182,9 @@ void InitCPU()
 	A = 0;
 	X = 0;
 	Y = 0;
-	SP = 0;
-	PC = 0;
+	PS = 0;
+	SP = 0xFFFC;	// Stack pointer
+	PC = 0x0100;	// program control
 }
 
 // 명령어를 Memory --> Cpu로 가져온다. PC증가 , Cycle 감소
@@ -110,14 +199,14 @@ BYTE FetchByte(int &cycle)
 void SetFlag(BYTE flag, bool set)
 {
 	if( set )
-		SP |= (0x01 << flag);
+		PS |= (0x01 << flag);
 	else
-		SP &= ~(0x01 << flag);
+		PS &= ~(0x01 << flag);
 }
 
 bool GetFlag(BYTE flag)
 {
-	return SP & (0x01 << flag);
+	return PS & (0x01 << flag);
 }
 
 void SetZeroNegative()
@@ -285,3 +374,5 @@ int main()
 	ReleaseMemory();
 	return 0;
 }
+
+#endif
