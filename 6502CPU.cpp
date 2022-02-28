@@ -95,7 +95,7 @@ WORD CPU::FetchWord(Memory& mem, int& cycle)
 	BYTE c1 = mem.GetByte(PC++);
 
 	// 엔디안에 따라 c0 <--> c1해야 할수도 있다
-	WORD w = c1 << 8 | c0;
+	WORD w = (c1 << 8) | c0;
 	cycle-=2;
 	return w;
 }
@@ -199,7 +199,7 @@ void CPU::Run(Memory &mem, int &cycle)
 			{
 				BYTE t = Fetch(mem, cycle);
 				WORD inx = t + X;
-
+				cycle--;
 				WORD addr = ReadWordMem(mem, inx, cycle);
 				A = ReadMem(mem, addr, cycle);
 
@@ -208,7 +208,19 @@ void CPU::Run(Memory &mem, int &cycle)
 			break;
 
 			case LDA_INDY:
-				break;
+			{
+				BYTE addr = Fetch(mem, cycle);
+				WORD t = ReadWordMem(mem, addr, cycle);
+				WORD inx = t + Y;
+				cycle--;
+				A = ReadMem(mem, inx, cycle);
+
+				if ((inx + Y) - t >= 0xFF)
+					cycle--;	// page 넘어감
+
+				SetZeroNegative(A);
+			}
+			break;
 
 			//////////////////////////////////////////////////////////////////////////////
 
@@ -236,6 +248,7 @@ void CPU::Run(Memory &mem, int &cycle)
 			case LDX_ABSY:
 				break;
 
+			//////////////////////////////////////////////////////////////////////////////
 
 			case JSR : // 6 cycle
 			{

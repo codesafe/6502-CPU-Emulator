@@ -40,7 +40,7 @@ class Memory
 		{
 			BYTE m0 = memory[addr];
 			BYTE m1 = memory[addr+1];
-			WORD w = (m0 >> 8) + m1;
+			WORD w = (m1 << 8) | m0;
 			return w;
 		}
 
