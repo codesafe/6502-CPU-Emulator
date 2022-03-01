@@ -16,6 +16,16 @@ class Memory
 		void Create();
 		void Destroy();
 
+		BYTE operator [] (int addr) const
+		{
+			return memory[addr];
+		}
+
+		BYTE& operator[] (int addr)
+		{
+			return memory[addr];
+		}
+
 		BYTE GetByte(int addr) const
 		{
 			return memory[addr];
@@ -25,16 +35,6 @@ class Memory
 		{
 			memory[addr] = value;
 		}
-
-// 		BYTE operator [] (int addr) const
-// 		{
-// 			return memory[addr];
-// 		}
-// 
-// 		BYTE& operator[] (int addr)
-// 		{
-// 			return memory[addr];
-// 		}
 
 		WORD ReadWord(int addr)
 		{

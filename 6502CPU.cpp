@@ -101,21 +101,27 @@ WORD CPU::FetchWord(Memory& mem, int& cycle)
 }
 
 // 메모리에서 읽는데 cycle소모 x / PC무관 할때 (Zero page같은것)
-BYTE CPU::ReadMem(Memory& mem, WORD addr, int& cycle)
+BYTE CPU::ReadByte(Memory& mem, WORD addr, int& cycle)
 {
 	BYTE c = mem.GetByte(addr);
 	cycle--;
 	return c;
 }
 
-WORD CPU::ReadWordMem(Memory& mem, WORD addr, int& cycle)
+WORD CPU::ReadWord(Memory& mem, WORD addr, int& cycle)
 {
 	WORD c = mem.ReadWord(addr);
 	cycle -= 2;
 	return c;
 }
 
-void CPU::WordWriteMem(Memory& mem, WORD value, int addr, int& cycle)
+void CPU::WriteByte(Memory& mem, BYTE value, int addr, int& cycle)
+{
+	mem.SetByte(addr, value);
+	cycle --;
+}
+
+void CPU::WriteWord(Memory& mem, WORD value, int addr, int& cycle)
 {
 	mem.WriteWord(value, addr);
 	cycle-=2;
@@ -125,12 +131,14 @@ void CPU::Run(Memory &mem, int &cycle)
 {
 	while (cycle > 0)
 	{
+		// 여기에서 cycle 하나 소모
 		BYTE inst = Fetch(mem, cycle);
 
 		switch (inst)
 		{
 			case LDA_IM: // 2 cycle
 			{
+				//LoadToRegister(mem, cycle, A);
 				A = Fetch(mem, cycle);
 				SetZeroNegative(A);
 			}
@@ -138,12 +146,13 @@ void CPU::Run(Memory &mem, int &cycle)
 
 			case LDA_ZP: // 3 cycle
 			{
+				//LoadToRegisterFromZP(mem, cycle, A);
+
 				// $0000 to $00FF
 				// Zero page에서 읽어서 A로
 				BYTE zpa = Fetch(mem, cycle);
 				// Zero page읽으면서 cycle 소모
-				A = ReadMem(mem, zpa, cycle);
-
+				A = ReadByte(mem, zpa, cycle);
 				SetZeroNegative(A);
 			}
 			break;
@@ -156,7 +165,7 @@ void CPU::Run(Memory &mem, int &cycle)
 				zpa += X;
 				cycle--;
 				// Zero page읽으면서 cycle 소모
-				A = ReadMem(mem, zpa, cycle);
+				A = ReadByte(mem, zpa, cycle);
 
 				SetZeroNegative(A);
 			}
@@ -166,7 +175,7 @@ void CPU::Run(Memory &mem, int &cycle)
 			case LDA_ABS: // 4 cycle
 			{
 				WORD addr = FetchWord(mem, cycle);
-				A = ReadMem(mem, addr, cycle);
+				A = ReadByte(mem, addr, cycle);
 				SetZeroNegative(A);
 			}
 			break;
@@ -174,49 +183,62 @@ void CPU::Run(Memory &mem, int &cycle)
 			case LDA_ABSX:// 4 cycle / 페이지 넘어가면 1 cycle 추가
 			{
 				// 메모리엑세스 페이지를 넘어가면 추가 사이클이 소요됨 (하드웨어가 그렇게 만들어짐?)
-				WORD addr = FetchWord(mem, cycle);
-				if ( (addr + X) - addr >= 0xFF )
-					cycle--;	// page 넘어감
+				BYTE lo = Fetch(mem, cycle);
+				BYTE hi = Fetch(mem, cycle);
+				
+				WORD t = lo + X;
+				if( t > 0xFF ) cycle--;
+				WORD addr = (lo | (hi << 8)) + X;
 
-				A = ReadMem(mem, addr + X, cycle);
+// 				WORD addr = FetchWord(mem, cycle);
+// 				if ( (addr + X) - addr >= 0xFF )
+// 					cycle--;	// page 넘어감
+
+				A = ReadByte(mem, addr, cycle);
 				SetZeroNegative(A);
 			}
 			break;
 
-			case LDA_ABSY:
+			case LDA_ABSY:	// 4 cycle
 			{
-				WORD addr = FetchWord(mem, cycle);
-				if ((addr + Y) - addr >= 0xFF)
-					cycle--;	// page 넘어감
+				BYTE lo = Fetch(mem, cycle);
+				BYTE hi = Fetch(mem, cycle);
 
-				A = ReadMem(mem, addr, cycle);
+				WORD t = lo + Y;
+				if (t > 0xFF) cycle--;
+				WORD addr = (lo | (hi << 8)) + Y;
+
+				A = ReadByte(mem, addr, cycle);
 				SetZeroNegative(A);
 
 			}
 			break;
 
-			case LDA_INDX:
+			case LDA_INDX:	// 6 cycle
 			{
 				BYTE t = Fetch(mem, cycle);
 				WORD inx = t + X;
 				cycle--;
-				WORD addr = ReadWordMem(mem, inx, cycle);
-				A = ReadMem(mem, addr, cycle);
+				WORD addr = ReadWord(mem, inx, cycle);
+				A = ReadByte(mem, addr, cycle);
 
 				SetZeroNegative(A);
 			}
 			break;
 
-			case LDA_INDY:
+			case LDA_INDY: // 5 ~ 6 cycle
 			{
+				// zero page에서 word 읽고 Y레지스터와 더한 주소의 1바이트를 A에 로드
+				// 읽을 주소가 page를 넘으면 1사이클 감소
 				BYTE addr = Fetch(mem, cycle);
-				WORD t = ReadWordMem(mem, addr, cycle);
-				WORD inx = t + Y;
-				cycle--;
-				A = ReadMem(mem, inx, cycle);
+				BYTE lo = ReadByte(mem, addr, cycle);
+				BYTE hi = ReadByte(mem, addr+1, cycle);
 
-				if ((inx + Y) - t >= 0xFF)
-					cycle--;	// page 넘어감
+				WORD t = lo + Y;
+				if (t > 0xFF) cycle--;	// page 넘어감
+
+				WORD index_addr = (lo | (hi << 8)) + Y;
+				A = ReadByte(mem, index_addr, cycle);
 
 				SetZeroNegative(A);
 			}
@@ -225,28 +247,177 @@ void CPU::Run(Memory &mem, int &cycle)
 			//////////////////////////////////////////////////////////////////////////////
 
 			// LDX
-			case LDX_IM:
+			case LDX_IM:	// 2cycle
 			{
+				//LoadToRegister(mem, cycle, X);
 				X = Fetch(mem, cycle);
-				// X가 0 이면 Zero flag
-				SetFlag(ZERO_FLAG, A == 0);
-				// X가 Negative Flag 면 Negative flag Set
-				SetFlag(NEGATIVE, A & NEGATIVE);
+				SetZeroNegative(X);
+			}
+			break;
+
+			case LDX_ZP:	// 3cycle
+			{
+				//LoadToRegisterFromZP(mem, cycle, X);
+ 				BYTE zpa = Fetch(mem, cycle);
+ 				X = ReadByte(mem, zpa, cycle);
+ 				SetZeroNegative(X);
+			}
+			break;
+
+			case LDX_ZPY:
+			{
+				BYTE zpage = Fetch(mem, cycle);
+				zpage += Y;
+				cycle--;
+				X = ReadByte(mem, zpage, cycle);
+				SetZeroNegative(X);
+			}
+			break;
+
+			case LDX_ABS:
+			{
+				WORD addr = FetchWord(mem, cycle);
+				X = ReadByte(mem, addr, cycle);
+				SetZeroNegative(X);
 
 			}
 			break;
 
-			case LDX_ZP:
-				break;
-
-			case LDX_ZPY:
-				break;
-
-			case LDX_ABS:
-				break;
-
 			case LDX_ABSY:
-				break;
+			{
+				BYTE lo = Fetch(mem, cycle);
+				BYTE hi = Fetch(mem, cycle);
+
+				WORD t = lo + Y;
+				if (t > 0xFF) cycle--;
+				WORD addr = (lo | (hi << 8)) + Y;
+
+				X = ReadByte(mem, addr, cycle);
+				SetZeroNegative(X);
+
+			}
+			break;
+
+			//////////////////////////////////////////////////////////////////////////////
+
+			case LDY_IM :
+			{
+				//LoadToRegister(mem, cycle, Y);
+				Y = Fetch(mem, cycle);
+				SetZeroNegative(Y);
+			}
+			break;
+
+			case LDY_ZP:
+			{
+				//LoadToRegisterFromZP(mem, cycle, Y);
+				BYTE zpa = Fetch(mem, cycle);
+				Y = ReadByte(mem, zpa, cycle);
+				SetZeroNegative(Y);
+			}
+			break;
+
+			case LDY_ZPX :
+			{
+				BYTE zpage = Fetch(mem, cycle);
+				zpage += X;
+				cycle--;
+				Y = ReadByte(mem, zpage, cycle);
+				SetZeroNegative(Y);
+			}
+			break;
+
+			case LDY_ABS :
+			{
+				WORD addr = FetchWord(mem, cycle);
+				Y = ReadByte(mem, addr, cycle);
+				SetZeroNegative(Y);
+			}
+			break;
+
+			case LDY_ABSX :
+			{
+				BYTE lo = Fetch(mem, cycle);
+				BYTE hi = Fetch(mem, cycle);
+
+				WORD t = lo + X;
+				if (t > 0xFF) cycle--;
+				WORD addr = (lo | (hi << 8)) + X;
+
+				Y = ReadByte(mem, addr, cycle);
+				SetZeroNegative(Y);
+			}
+			break;
+
+			//////////////////////////////////////////////////////////////////////////////
+
+			case STA_ZP	:	// 3 cycle
+			{
+				// ZeroPage에 A레지스터 내용 쓰기
+				BYTE zpage = Fetch(mem, cycle);
+				WriteByte(mem, A, zpage, cycle);
+			}
+			break;
+
+			case STA_ZPX :	// 4 cycle
+			{
+				// ZP + X에 A레지스터 내용쓰기
+				BYTE zpage = Fetch(mem, cycle);
+				zpage += X;
+				cycle--;
+				WriteByte(mem, A, zpage, cycle);
+			}
+			break;
+
+			case STA_ABS:	// 4 cycle
+			{
+				// WORD address에 A레지스터 내용 쓰기
+				WORD addr = FetchWord(mem, cycle);
+				WriteByte(mem, A, addr, cycle);
+			}
+			break;
+
+			case STA_ABSX:	// 5 cycle
+			{
+				// WORD address + X에 A레지스터 내용 쓰기
+				WORD addr = FetchWord(mem, cycle);
+				addr += X;
+				cycle--;
+				WriteByte(mem, A, addr, cycle);
+			}
+			break;
+
+			case STA_ABSY:	// 5 cycle
+			{
+				// WORD address + Y에 A레지스터 내용 쓰기
+				WORD addr = FetchWord(mem, cycle);
+				addr += Y;
+				cycle--;
+				WriteByte(mem, A, addr, cycle);
+			}
+			break;
+
+			case STA_INDX:	// 6 cycle
+			{
+				// ZeroPage + X 가 가르키는곳에 A레지스터 내용쓰기 
+				BYTE zp = Fetch(mem, cycle);
+				zp += X;
+				cycle--;
+				WORD addr = ReadWord(mem, zp, cycle);
+				WriteByte(mem, A, addr, cycle);
+			}
+			break;
+
+			case STA_INDY:	// 6 cycle
+			{
+				// ZeroPage에서 WORD address얻고 address + Y에 가르키는곳에 A레지스터 내용쓰기 
+				BYTE zp = Fetch(mem, cycle);
+				WORD addr = ReadWord(mem, zp, cycle);
+				addr += Y;
+				cycle--;
+				WriteByte(mem, A, addr, cycle);
+			}
+			break;
 
 			//////////////////////////////////////////////////////////////////////////////
 
@@ -256,17 +427,37 @@ void CPU::Run(Memory &mem, int &cycle)
 				// point on to the stack and then sets the program counter to the target memory address.
   				WORD sr_addr = FetchWord(mem, cycle);
 				// PC - 1의 값을 SP가 가르키는 메모리 위치에 쓰기 ( 2cycle소모)
-				WordWriteMem(mem, PC - 1, SP, cycle);
+				WriteWord(mem, PC - 1, SP, cycle);
 
 				PC = sr_addr;
 				cycle--;
 			}
 			break;
 
+			//////////////////////////////////////////////////////////////////////////////
+
+			case NOP :
+				cycle--;
+			break;
+
+			//////////////////////////////////////////////////////////////////////////////
 
 			default:
 				printf("Unknown instruction : %x", inst);
 				break;
 		}
 	}
+}
+
+void CPU::LoadToRegister(Memory& mem, int& cycle, BYTE &reg)
+{
+	reg = Fetch(mem, cycle);
+	SetZeroNegative(reg);
+}
+
+void CPU::LoadToRegisterFromZP(Memory& mem, int& cycle, BYTE& reg)
+{
+	BYTE zpa = Fetch(mem, cycle);
+	reg = ReadByte(mem, zpa, cycle);
+	SetZeroNegative(reg);
 }

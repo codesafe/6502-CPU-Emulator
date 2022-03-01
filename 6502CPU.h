@@ -37,7 +37,7 @@ BYTE N : 1; //7: Negative
 /*
 	구현된것들은 () 처리
 	ADC AND ASL BCC BCS BEQ BIT BMI BNE BPL BRK BVC BVS CLC CLD CLI CLV CMP
-	CPX CPY DEC DEX DEY EOR INC INX INY JMP JSR (LDA) LDX LDY LSR NOP ORA PHA
+	CPX CPY DEC DEX DEY EOR INC INX INY JMP JSR (LDA) (LDX) (LDY) LSR NOP ORA PHA
 	PHP PLA PLP ROL ROR RTI RTS SBC SEC SED SEI STA STX STY TAX TAY TSX TXA
 	TXS TYA
 */
@@ -59,9 +59,37 @@ BYTE N : 1; //7: Negative
 #define LDX_ABS		0xAE
 #define LDX_ABSY	0xBE
 
+// LDY (LoaD Y register)
+#define LDY_IM		0xA0
+#define LDY_ZP		0xA4
+#define LDY_ZPX		0xB4
+#define LDY_ABS		0xAC
+#define LDY_ABSX	0xBC
+
+// No Operation
+#define NOP			0xEA
 
 // JSR (Jump to Subroutine)
 #define JSR			0x20
+
+// STA - Store Accumulator
+#define STA_ZP		0x85
+#define STA_ZPX		0x95
+#define STA_ABS		0x8D
+#define STA_ABSX	0x9D
+#define STA_ABSY	0x99
+#define STA_INDX	0x81
+#define STA_INDY	0x91
+
+// STX - Store X Register
+#define STX_ZP		0x86
+#define STX_ZPY		0x96
+#define STX_ABS		0x8E
+
+// STY - Store Y Register
+#define STY_ZP		0x84
+#define STY_ZPX		0x94
+#define STY_ABS		0x8C
 
 
 struct StatusFlags
@@ -109,12 +137,19 @@ public:
 
 	void SetZeroNegative(BYTE Register);
 	BYTE Fetch(Memory& mem, int& cycle);
-
-	BYTE ReadMem(Memory& mem, WORD add, int& cycle);
-	WORD ReadWordMem(Memory& mem, WORD addr, int& cycle);
-
 	WORD FetchWord(Memory& mem, int& cycle);
-	void WordWriteMem(Memory& mem, WORD value, int addr, int& cycle);
+
+	BYTE ReadByte(Memory& mem, WORD add, int& cycle);
+	WORD ReadWord(Memory& mem, WORD addr, int& cycle);
+
+	void WriteByte(Memory& mem, BYTE value, int addr, int& cycle);
+	void WriteWord(Memory& mem, WORD value, int addr, int& cycle);
+
+
+	//////////////////////////////////////////////////////////////////////////
+
+	void LoadToRegister(Memory& mem, int& cycle, BYTE& reg);
+	void LoadToRegisterFromZP(Memory& mem, int& cycle, BYTE& reg);
 
 };
 
