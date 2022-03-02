@@ -264,7 +264,7 @@ void CPU::Run(Memory &mem, int &cycle)
 			}
 			break;
 
-			case LDX_ZPY:
+			case LDX_ZPY:	// 4cycle
 			{
 				BYTE zpage = Fetch(mem, cycle);
 				zpage += Y;
@@ -274,7 +274,7 @@ void CPU::Run(Memory &mem, int &cycle)
 			}
 			break;
 
-			case LDX_ABS:
+			case LDX_ABS:	// 4cycle
 			{
 				WORD addr = FetchWord(mem, cycle);
 				X = ReadByte(mem, addr, cycle);
@@ -283,7 +283,7 @@ void CPU::Run(Memory &mem, int &cycle)
 			}
 			break;
 
-			case LDX_ABSY:
+			case LDX_ABSY:	// 4 ~ 5 cycle
 			{
 				BYTE lo = Fetch(mem, cycle);
 				BYTE hi = Fetch(mem, cycle);
@@ -300,7 +300,7 @@ void CPU::Run(Memory &mem, int &cycle)
 
 			//////////////////////////////////////////////////////////////////////////////
 
-			case LDY_IM :
+			case LDY_IM : // 2 cycle
 			{
 				//LoadToRegister(mem, cycle, Y);
 				Y = Fetch(mem, cycle);
@@ -308,7 +308,7 @@ void CPU::Run(Memory &mem, int &cycle)
 			}
 			break;
 
-			case LDY_ZP:
+			case LDY_ZP: // 3 cycle
 			{
 				//LoadToRegisterFromZP(mem, cycle, Y);
 				BYTE zpa = Fetch(mem, cycle);
@@ -317,7 +317,7 @@ void CPU::Run(Memory &mem, int &cycle)
 			}
 			break;
 
-			case LDY_ZPX :
+			case LDY_ZPX : // 4 cycle
 			{
 				BYTE zpage = Fetch(mem, cycle);
 				zpage += X;
@@ -327,7 +327,7 @@ void CPU::Run(Memory &mem, int &cycle)
 			}
 			break;
 
-			case LDY_ABS :
+			case LDY_ABS : // 4 cycle
 			{
 				WORD addr = FetchWord(mem, cycle);
 				Y = ReadByte(mem, addr, cycle);
@@ -335,7 +335,7 @@ void CPU::Run(Memory &mem, int &cycle)
 			}
 			break;
 
-			case LDY_ABSX :
+			case LDY_ABSX : // 4~5 cycle
 			{
 				BYTE lo = Fetch(mem, cycle);
 				BYTE hi = Fetch(mem, cycle);
