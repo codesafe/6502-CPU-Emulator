@@ -24,21 +24,21 @@ BYTE V : 1; //6: Overflow
 BYTE N : 1; //7: Negative
 */
 // Flag Define : PS
-#define CARRY_FLAG				0b00000001
-#define ZERO_FLAG				0b00000010
-#define INTERRUPT_DISABLE		0b00000100
-#define DECIMAL_MODE			0b00001000
-#define BREAK					0b00010000
-#define OVERFLOW				0b00100000
-#define UNUSED					0b01000000
-#define NEGATIVE				0b10000000
+#define FLAG_CARRY					0b00000001
+#define FLAG_ZERO					0b00000010
+#define FLAG_INTERRUPT_DISABLE		0b00000100
+#define FLAG_DECIMAL_MODE			0b00001000
+#define FLAG_BREAK					0b00010000
+#define FLAG_OVERFLOW				0b00100000
+#define FLAG_UNUSED					0b01000000
+#define FLAG_NEGATIVE				0b10000000
 
 // Instruction
 /*
 	구현된것들은 () 처리
 	ADC AND ASL BCC BCS BEQ BIT BMI BNE BPL BRK BVC BVS CLC CLD CLI CLV CMP
 	CPX CPY DEC DEX DEY EOR INC INX INY JMP JSR (LDA) (LDX) (LDY) LSR NOP ORA PHA
-	PHP PLA PLP ROL ROR RTI RTS SBC SEC SED SEI STA STX STY TAX TAY TSX TXA
+	PHP PLA PLP ROL ROR RTI RTS SBC SEC SED SEI (STA) STX STY TAX TAY TSX TXA
 	TXS TYA
 */
 
@@ -107,6 +107,7 @@ struct StatusFlags
 class CPU
 {
 private:
+public:
 	// Registor
 	BYTE	A;		// Accumulator
 	BYTE	X;		// Index Registor
@@ -126,7 +127,7 @@ public:
 	~CPU();
 
 	void Reset();
-	void Run(Memory& mem, int& cycle);
+	int Run(Memory& mem, int& cycle);
 
 	void SetRegister(BYTE type, BYTE value);
 	BYTE GetRegister(BYTE type);

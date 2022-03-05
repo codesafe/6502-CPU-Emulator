@@ -79,7 +79,7 @@ void CPU::SetZeroNegative(BYTE Register)
 
 	// A가 Negative Flag 면 Negative flag Set
 	//SetFlag(NEGATIVE, A & NEGATIVE);
-	Flag.N = (Register & NEGATIVE) > 0;
+	Flag.N = (Register & FLAG_NEGATIVE) > 0;
 }
 
 BYTE CPU::Fetch(Memory& mem, int &cycle)
@@ -127,8 +127,10 @@ void CPU::WriteWord(Memory& mem, WORD value, int addr, int& cycle)
 	cycle-=2;
 }
 
-void CPU::Run(Memory &mem, int &cycle)
+int CPU::Run(Memory &mem, int &cycle)
 {
+	const int CyclesRequested = cycle;
+
 	while (cycle > 0)
 	{
 		// 여기에서 cycle 하나 소모
@@ -421,6 +423,65 @@ void CPU::Run(Memory &mem, int &cycle)
 
 			//////////////////////////////////////////////////////////////////////////////
 
+			case STX_ZP	:	// 3 cycle
+			{
+				// ZeroPage에 X레지스터 내용 쓰기
+				BYTE zpage = Fetch(mem, cycle);
+				WriteByte(mem, X, zpage, cycle);
+			}
+			break;
+
+			case STX_ZPY:	// 4 cycle
+			{
+				// ZP + X에 X레지스터 내용쓰기
+				BYTE zpage = Fetch(mem, cycle);
+				zpage += Y;
+				cycle--;
+				WriteByte(mem, X, zpage, cycle);
+			}
+			break;
+
+			case STX_ABS:	// 4 cycle
+			{
+				// WORD address에 X레지스터 내용 쓰기
+				WORD addr = FetchWord(mem, cycle);
+				WriteByte(mem, X, addr, cycle);
+			}
+			break;
+
+			//////////////////////////////////////////////////////////////////////////////
+
+			case STY_ZP:	// 3 cycle
+			{
+				// ZeroPage에 X레지스터 내용 쓰기
+				BYTE zpage = Fetch(mem, cycle);
+				WriteByte(mem, Y, zpage, cycle);
+
+			}
+			break;
+
+			case STY_ZPX:	// 4 cycle
+			{
+				// ZP + X에 Y레지스터 내용쓰기
+				BYTE zpage = Fetch(mem, cycle);
+				zpage += X;
+				cycle--;
+				WriteByte(mem, Y, zpage, cycle);
+			}
+			break;
+
+			case STY_ABS:	// 4 cycle
+			{
+				// WORD address에 Y레지스터 내용 쓰기
+				WORD addr = FetchWord(mem, cycle);
+				WriteByte(mem, Y, addr, cycle);
+			}
+			break;
+
+
+
+			//////////////////////////////////////////////////////////////////////////////
+
 			case JSR : // 6 cycle
 			{
 				// The JSR instruction pushes the address (minus one) of the return 
@@ -447,6 +508,8 @@ void CPU::Run(Memory &mem, int &cycle)
 				break;
 		}
 	}
+
+	return CyclesRequested - cycle;
 }
 
 void CPU::LoadToRegister(Memory& mem, int& cycle, BYTE &reg)
@@ -455,6 +518,7 @@ void CPU::LoadToRegister(Memory& mem, int& cycle, BYTE &reg)
 	SetZeroNegative(reg);
 }
 
+// ZP에 있는 값을 레지스터에 로드
 void CPU::LoadToRegisterFromZP(Memory& mem, int& cycle, BYTE& reg)
 {
 	BYTE zpa = Fetch(mem, cycle);
