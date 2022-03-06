@@ -652,7 +652,7 @@ int CPU::Run(Memory &mem, int &cycle)
 			}
 			break;
 
-			case AND_ZPX:
+			case AND_ZPX:	// 4 cycle
 			{
 				BYTE zpa = Fetch(mem, cycle);
 				zpa += X;
@@ -719,6 +719,182 @@ int CPU::Run(Memory &mem, int &cycle)
 
 				WORD index_addr = (lo | (hi << 8)) + Y;
 				A &= ReadByte(mem, index_addr, cycle);
+
+				SetZeroNegative(A);
+			}
+			break;
+
+
+			case ORA_IM :
+			{
+				A |= Fetch(mem, cycle);
+				SetZeroNegative(A);
+			}
+			break;
+
+			case ORA_ZP:
+			{
+				BYTE zpa = Fetch(mem, cycle);
+				A |= ReadByte(mem, zpa, cycle);
+				SetZeroNegative(A);
+			}
+			break;
+
+			case ORA_ZPX:
+			{
+				BYTE zpa = Fetch(mem, cycle);
+				zpa += X;
+				cycle--;
+				A |= ReadByte(mem, zpa, cycle);
+				SetZeroNegative(A);
+			}
+			break;
+
+			case ORA_ABS:
+			{
+				WORD addr = FetchWord(mem, cycle);
+				A |= ReadByte(mem, addr, cycle);
+				SetZeroNegative(A);
+			}
+			break;
+
+			case ORA_ABSX:
+			{
+				BYTE lo = Fetch(mem, cycle);
+				BYTE hi = Fetch(mem, cycle);
+				WORD t = lo + X;
+				if (t > 0xFF) cycle--;
+				WORD addr = (lo | (hi << 8)) + X;
+
+				A |= ReadByte(mem, addr, cycle);
+				SetZeroNegative(A);
+			}
+			break;
+
+			case ORA_ABSY:
+			{
+				BYTE lo = Fetch(mem, cycle);
+				BYTE hi = Fetch(mem, cycle);
+				WORD t = lo + Y;
+				if (t > 0xFF) cycle--;
+				WORD addr = (lo | (hi << 8)) + Y;
+
+				A |= ReadByte(mem, addr, cycle);
+				SetZeroNegative(A);
+			}
+			break;
+
+			case ORA_INDX:
+			{
+				BYTE t = Fetch(mem, cycle);
+				WORD inx = t + X;
+				cycle--;
+				WORD addr = ReadWord(mem, inx, cycle);
+				A |= ReadByte(mem, addr, cycle);
+
+				SetZeroNegative(A);
+			}
+			break;
+
+			case ORA_INDY:
+			{
+				BYTE addr = Fetch(mem, cycle);
+				BYTE lo = ReadByte(mem, addr, cycle);
+				BYTE hi = ReadByte(mem, addr + 1, cycle);
+
+				WORD t = lo + Y;
+				if (t > 0xFF) cycle--;	// page 넘어감
+
+				WORD index_addr = (lo | (hi << 8)) + Y;
+				A |= ReadByte(mem, index_addr, cycle);
+
+				SetZeroNegative(A);
+			}
+			break;
+
+
+			case EOR_IM:
+			{
+				A ^= Fetch(mem, cycle);
+				SetZeroNegative(A);
+			}
+			break;
+
+			case EOR_ZP:
+			{
+				BYTE zpa = Fetch(mem, cycle);
+				A ^= ReadByte(mem, zpa, cycle);
+				SetZeroNegative(A);
+			}
+			break;
+
+			case EOR_ZPX:
+			{
+				BYTE zpa = Fetch(mem, cycle);
+				zpa += X;
+				cycle--;
+				A ^= ReadByte(mem, zpa, cycle);
+				SetZeroNegative(A);
+			}
+			break;
+
+			case EOR_ABS:
+			{
+				WORD addr = FetchWord(mem, cycle);
+				A ^= ReadByte(mem, addr, cycle);
+				SetZeroNegative(A);
+			}
+			break;
+
+			case EOR_ABSX:
+			{
+				BYTE lo = Fetch(mem, cycle);
+				BYTE hi = Fetch(mem, cycle);
+				WORD t = lo + X;
+				if (t > 0xFF) cycle--;
+				WORD addr = (lo | (hi << 8)) + X;
+
+				A ^= ReadByte(mem, addr, cycle);
+				SetZeroNegative(A);
+			}
+			break;
+
+			case EOR_ABSY:
+			{
+				BYTE lo = Fetch(mem, cycle);
+				BYTE hi = Fetch(mem, cycle);
+				WORD t = lo + Y;
+				if (t > 0xFF) cycle--;
+				WORD addr = (lo | (hi << 8)) + Y;
+
+				A ^= ReadByte(mem, addr, cycle);
+				SetZeroNegative(A);
+			}
+			break;
+
+			case EOR_INDX:
+			{
+				BYTE t = Fetch(mem, cycle);
+				WORD inx = t + X;
+				cycle--;
+				WORD addr = ReadWord(mem, inx, cycle);
+				A ^= ReadByte(mem, addr, cycle);
+
+				SetZeroNegative(A);
+			}
+			break;
+
+			case EOR_INDY:
+			{
+				BYTE addr = Fetch(mem, cycle);
+				BYTE lo = ReadByte(mem, addr, cycle);
+				BYTE hi = ReadByte(mem, addr + 1, cycle);
+
+				WORD t = lo + Y;
+				if (t > 0xFF) cycle--;	// page 넘어감
+
+				WORD index_addr = (lo | (hi << 8)) + Y;
+				A ^= ReadByte(mem, index_addr, cycle);
 
 				SetZeroNegative(A);
 			}
