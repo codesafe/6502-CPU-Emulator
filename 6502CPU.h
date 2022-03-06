@@ -14,6 +14,16 @@ class Memory;
 #define REGISTER_Y		2
 
 /*
+	https://www.cs.jhu.edu/~phi/csf/slides/lecture-6502-stack.pdf
+	6502 Stack은 0x01FF, 0x01FE, 0x01FD --> 0x0100로 Push 된다
+	Stack은 총 256 Byte
+*/
+#define STACK_ADDRESS	0x0100
+#define STACK_POS		0xFF
+#define PC_START		0xFFFC
+
+
+/*
 BYTE C : 1;	//0: Carry Flag
 BYTE Z : 1;	//1: Zero Flag
 BYTE I : 1; //2: Interrupt disable
@@ -37,8 +47,8 @@ BYTE N : 1; //7: Negative
 /*
 	구현된것들은 () 처리
 	ADC AND ASL BCC BCS BEQ BIT BMI BNE BPL BRK BVC BVS CLC CLD CLI CLV CMP
-	CPX CPY DEC DEX DEY EOR INC INX INY JMP JSR (LDA) (LDX) (LDY) LSR NOP ORA PHA
-	PHP PLA PLP ROL ROR RTI RTS SBC SEC SED SEI (STA) STX STY TAX TAY TSX TXA
+	CPX CPY DEC DEX DEY EOR INC INX INY (JMP) (JSR) (LDA) (LDX) (LDY) LSR NOP ORA PHA
+	PHP PLA PLP ROL ROR RTI (RTS) SBC SEC SED SEI (STA) (STX) (STY) TAX TAY TSX TXA
 	TXS TYA
 */
 
@@ -71,6 +81,11 @@ BYTE N : 1; //7: Negative
 
 // JSR (Jump to Subroutine)
 #define JSR			0x20
+#define JMP_ABS		0x4C
+#define JMP_IND		0x6C
+// Return from Subroutine
+#define RTS			0x60
+
 
 // STA - Store Accumulator
 #define STA_ZP		0x85
@@ -90,6 +105,20 @@ BYTE N : 1; //7: Negative
 #define STY_ZP		0x84
 #define STY_ZPX		0x94
 #define STY_ABS		0x8C
+
+
+// Stack Operation
+// Transfer Stack Pointer to X
+#define TSX			0xBA
+// Transfer X to Stack Pointer
+#define TXS			0x9A
+// Push Accumulator
+#define PHA			0X48
+// Pull Accumulator
+#define PLA			0x68
+// Pull Processor Status
+#define PLP			0x28
+
 
 
 struct StatusFlags
@@ -113,7 +142,7 @@ public:
 	BYTE	X;		// Index Registor
 	BYTE	Y;
 	//BYTE	PS;		// Processor Status : Flag
-	WORD	SP;		// Stack Pointer
+	BYTE	SP;		// Stack Pointer
 	WORD	PC;		// program control
 
 	union
@@ -122,11 +151,13 @@ public:
 		StatusFlags Flag;
 	};
 
+
 public:
 	CPU();
 	~CPU();
 
 	void Reset();
+	void SetPCAddress(WORD addr);
 	int Run(Memory& mem, int& cycle);
 
 	void SetRegister(BYTE type, BYTE value);
@@ -146,12 +177,17 @@ public:
 	void WriteByte(Memory& mem, BYTE value, int addr, int& cycle);
 	void WriteWord(Memory& mem, WORD value, int addr, int& cycle);
 
+	void PushStackByte(Memory& mem, BYTE value, int& cycle);
+	void PushStackWord(Memory& mem, WORD value, int& cycle);
+	BYTE PopStackByte(Memory& mem, int& cycle);
+	WORD PopStackWord(Memory& mem, int& cycle);
 
 	//////////////////////////////////////////////////////////////////////////
 
 	void LoadToRegister(Memory& mem, int& cycle, BYTE& reg);
 	void LoadToRegisterFromZP(Memory& mem, int& cycle, BYTE& reg);
 
+	WORD GetStackAddress();
 };
 
 #endif

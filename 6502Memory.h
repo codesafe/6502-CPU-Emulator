@@ -46,8 +46,8 @@ class Memory
 
 		void WriteWord(WORD value, int addr)
 		{
-			memory[addr] = value & 0xFF;
-			memory[addr+1] = value >> 8;
+			memory[addr] = value >> 8;
+			memory[addr+1] = value & 0xFF;
 		}
 };
 

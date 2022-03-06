@@ -20,9 +20,14 @@ void CPU::Reset()
 	A = 0;
 	X = 0;
 	Y = 0;
-	PS = 0;			// processor status (flags)
-	SP = 0x0100;	// Stack pointer
-	PC = 0xFFFC;	// program control
+	PS = 0;				// processor status (flags)
+	SP = STACK_POS;	// Stack pointer
+	PC = PC_START;		// program control
+}
+
+void CPU::SetPCAddress(WORD addr)
+{
+	PC = addr;
 }
 
 void CPU::SetRegister(BYTE type, BYTE value)
@@ -126,6 +131,52 @@ void CPU::WriteWord(Memory& mem, WORD value, int addr, int& cycle)
 	mem.WriteWord(value, addr);
 	cycle-=2;
 }
+
+// 이거를 써야하는 이유는 
+/*
+	SP는 1byte이고 Stack 메모리는 0x01FF -> 0x0100까지 256 Byte이므로
+	Address는 WORD이고 스택의 메모리 위치는 감소하기 때문에 이렇게 계산해햐함
+*/
+WORD CPU::GetStackAddress()
+{
+	WORD sp = STACK_ADDRESS | SP;
+	return sp;
+}
+
+// Byte를 Stack에 Push
+void CPU::PushStackByte(Memory& mem, BYTE value, int& cycle)
+{
+	WriteByte(mem, value, GetStackAddress(), cycle);
+	SP--;
+}
+
+// Word를 Stack에 Push
+void CPU::PushStackWord(Memory& mem, WORD value, int& cycle)
+{
+	WriteByte(mem, value >> 8, GetStackAddress(), cycle);
+	SP--;
+	WriteByte(mem, value & 0xFF, GetStackAddress(), cycle);
+	SP--;
+}
+
+// 스택에서 1 byte POP
+BYTE CPU::PopStackByte(Memory& mem, int& cycle)
+{
+	SP++;
+	BYTE popbyte = ReadByte(mem, GetStackAddress(), cycle);
+	cycle--;
+	return popbyte;
+}
+
+// Stack에서 Word pop
+WORD CPU::PopStackWord(Memory& mem, int& cycle)
+{
+	WORD popWord = ReadWord(mem, GetStackAddress()+1, cycle);
+	SP += 2;
+	cycle--;
+	return popWord;
+}
+
 
 int CPU::Run(Memory &mem, int &cycle)
 {
@@ -480,20 +531,101 @@ int CPU::Run(Memory &mem, int &cycle)
 
 
 
-			//////////////////////////////////////////////////////////////////////////////
+			////////////////////////////////////////////////////////////////////////////// JUMP
 
 			case JSR : // 6 cycle
 			{
 				// The JSR instruction pushes the address (minus one) of the return 
 				// point on to the stack and then sets the program counter to the target memory address.
   				WORD sr_addr = FetchWord(mem, cycle);
-				// PC - 1의 값을 SP가 가르키는 메모리 위치에 쓰기 ( 2cycle소모)
-				WriteWord(mem, PC - 1, SP, cycle);
+
+				// 스택에 PC-1을 Push
+				PushStackWord(mem, PC - 1, cycle);
 
 				PC = sr_addr;
 				cycle--;
 			}
 			break;
+
+			case JMP_ABS :	// 3 cycle
+			{
+				WORD addr = FetchWord(mem, cycle);
+				PC = addr;
+			}
+			break;
+
+			case JMP_IND :	// 5 cycle
+			{
+				WORD addr = FetchWord(mem, cycle);
+				addr = ReadWord(mem, addr, cycle);
+				PC = addr;
+			}
+			break;
+
+			case RTS :	// 6 cycle
+			{
+				WORD addr = PopStackWord(mem, cycle);
+				PC = addr + 1;
+				cycle -= 2;
+			}
+			break;
+
+			//////////////////////////////////////////////////////////////////////////////	STACK
+
+			// Transfer (Stack Pointer) to X
+			case TSX :	// 2 cycle
+			{
+				// 스택포인터를 X 레지스터로
+				X = SP;
+				cycle--;
+				// Z / N flag
+				SetZeroNegative(X);
+			}
+			break;
+
+			// Transfer X to (Stack Pointer)
+			case TXS :	// 2 cycle
+			{
+				// X레지스터를 SP로
+				SP = X;
+				cycle--;
+			}
+			break;
+
+			// Pushes a copy of the accumulator on to the stack.
+			case PHA :	// 3 cycle
+			{
+				// A 레지스터를 스택에 Push
+				PushStackByte(mem, A, cycle);
+				cycle--;
+			}
+			break;
+
+			// Pulls an 8 bit value from the stack and into the accumulator. 
+			// The zero and negative flags are set as appropriate.
+			case PLA :	// 4 cycle
+			{
+				// 스택에서 8비트를 pull --> A로
+				A = PopStackByte(mem, cycle);
+				cycle--;
+				// Z / N flag
+				SetZeroNegative(A);
+			}
+			break;
+
+			// Pulls an 8 bit value from the stack and into the processor flags. 
+			// The flags will take on new states as determined by the value pulled.
+			case PLP :	// 4 cycle
+			{
+				// pop 8 bit를 --> PS (Flag) : 플레그들은 Pop된 값에의하여 새로운 플레그 상태를 갖음
+				PS = PopStackByte(mem, cycle);
+				cycle--;
+				// B , Unused는 사용하지 않음
+				Flag.B = false;
+				Flag.Unused = false;
+			}
+			break;
+
 
 			//////////////////////////////////////////////////////////////////////////////
 
