@@ -47,8 +47,8 @@ BYTE N : 1; //7: Negative
 /*
 	구현된것들은 () 처리
 	ADC AND ASL BCC BCS BEQ BIT BMI BNE BPL BRK BVC BVS CLC CLD CLI CLV CMP
-	CPX CPY DEC DEX DEY EOR INC INX INY (JMP) (JSR) (LDA) (LDX) (LDY) LSR NOP ORA PHA
-	PHP PLA PLP ROL ROR RTI (RTS) SBC SEC SED SEI (STA) (STX) (STY) TAX TAY TSX TXA
+	CPX CPY DEC DEX DEY EOR INC INX INY (JMP) (JSR) (LDA) (LDX) (LDY) LSR (NOP) ORA (PHA)
+	(PHP) (PLA) (PLP) ROL ROR RTI (RTS) SBC SEC SED SEI (STA) (STX) (STY) TAX TAY TSX TXA
 	TXS TYA
 */
 
@@ -108,17 +108,40 @@ BYTE N : 1; //7: Negative
 
 
 // Stack Operation
-// Transfer Stack Pointer to X
-#define TSX			0xBA
-// Transfer X to Stack Pointer
-#define TXS			0x9A
-// Push Accumulator
-#define PHA			0X48
-// Pull Accumulator
-#define PLA			0x68
-// Pull Processor Status
-#define PLP			0x28
+#define TSX			0xBA		// Transfer Stack Pointer to X
+#define TXS			0x9A		// Transfer X to Stack Pointer
+#define PHA			0X48		// Push Accumulator
+#define PLA			0x68		// Pull Accumulator
+#define PLP			0x28		// Pull Processor Status
+#define PHP			0x08		// Pushes a copy of the status flags on to the stack.
 
+// Logical Operation
+#define AND_IM		0x29
+#define AND_ZP		0x25
+#define AND_ZPX		0x35
+#define AND_ABS		0x2D
+#define AND_ABSX	0x3D
+#define AND_ABSY	0x39
+#define AND_INDX	0x21
+#define AND_INDY	0x31
+
+#define ORA_IM		0x09
+#define ORA_ZP		0x05
+#define ORA_ZPX		0x15
+#define ORA_ABS		0x0D
+#define ORA_ABSX	0x1D
+#define ORA_ABSY	0x19
+#define ORA_INDX	0x01
+#define ORA_INDY	0x11
+
+#define EOR_IM		0x49
+#define EOR_ZP		0x45
+#define EOR_ZPX		0x55
+#define EOR_ABS		0x4D
+#define EOR_ABSX	0x5D
+#define EOR_ABSY	0x59
+#define EOR_INDX	0x41
+#define EOR_INDY	0x51
 
 
 struct StatusFlags

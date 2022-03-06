@@ -252,7 +252,7 @@ int CPU::Run(Memory &mem, int &cycle)
 			}
 			break;
 
-			case LDA_ABSY:	// 4 cycle
+			case LDA_ABSY:	// 4 cycle / 페이지 넘어가면 1 cycle 추가
 			{
 				BYTE lo = Fetch(mem, cycle);
 				BYTE hi = Fetch(mem, cycle);
@@ -626,6 +626,103 @@ int CPU::Run(Memory &mem, int &cycle)
 			}
 			break;
 
+			// Pushes a copy of the status flags on to the stack.
+			case PHP :	// 3 cycle
+			{
+				// PS -> Stack에 Push
+				PushStackByte(mem, PS, cycle);
+				cycle--;
+			}
+			break;
+
+			//////////////////////////////////////////////////////////////////////////////
+
+			case AND_IM :	// 2 cycle
+			{
+				A &= Fetch(mem, cycle);
+				SetZeroNegative(A);
+			}
+			break;
+
+			case AND_ZP:	// 3 cycle
+			{
+				BYTE zpa = Fetch(mem, cycle);
+				A &= ReadByte(mem, zpa, cycle);
+				SetZeroNegative(A);
+			}
+			break;
+
+			case AND_ZPX:
+			{
+				BYTE zpa = Fetch(mem, cycle);
+				zpa += X;
+				cycle--;
+				A &= ReadByte(mem, zpa, cycle);
+				SetZeroNegative(A);
+			}
+			break;
+
+			case AND_ABS:	// 4cycle
+			{
+				WORD addr = FetchWord(mem, cycle);
+				A &= ReadByte(mem, addr, cycle);
+				SetZeroNegative(A);
+			}
+			break;
+
+			case AND_ABSX:	// 4 cycle / 페이지 넘어가면 1 cycle 추가
+			{
+				BYTE lo = Fetch(mem, cycle);
+				BYTE hi = Fetch(mem, cycle);
+				WORD t = lo + X;
+				if (t > 0xFF) cycle--;
+				WORD addr = (lo | (hi << 8)) + X;
+
+				A &= ReadByte(mem, addr, cycle);
+				SetZeroNegative(A);
+			}
+			break;
+
+			case AND_ABSY:	// 4 cycle / 페이지 넘어가면 1 cycle 추가
+			{
+				BYTE lo = Fetch(mem, cycle);
+				BYTE hi = Fetch(mem, cycle);
+				WORD t = lo + Y;
+				if (t > 0xFF) cycle--;
+				WORD addr = (lo | (hi << 8)) + Y;
+
+				A &= ReadByte(mem, addr, cycle);
+				SetZeroNegative(A);
+			}
+			break;
+
+			case AND_INDX:	// 6 cycle
+			{
+				BYTE t = Fetch(mem, cycle);
+				WORD inx = t + X;
+				cycle--;
+				WORD addr = ReadWord(mem, inx, cycle);
+				A &= ReadByte(mem, addr, cycle);
+
+				SetZeroNegative(A);
+			}
+			break;
+
+			case AND_INDY:	// 5 cycle / 페이지 넘어가면 1 cycle 추가
+			{
+				BYTE addr = Fetch(mem, cycle);
+				BYTE lo = ReadByte(mem, addr, cycle);
+				BYTE hi = ReadByte(mem, addr + 1, cycle);
+
+				WORD t = lo + Y;
+				if (t > 0xFF) cycle--;	// page 넘어감
+
+				WORD index_addr = (lo | (hi << 8)) + Y;
+				A &= ReadByte(mem, index_addr, cycle);
+
+				SetZeroNegative(A);
+			}
+			break;
 
 			//////////////////////////////////////////////////////////////////////////////
 

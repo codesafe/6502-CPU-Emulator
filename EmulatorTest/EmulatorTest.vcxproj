@@ -43,6 +43,7 @@
     <ClCompile Include="..\6502Memory.cpp" />
     <ClCompile Include="UnitTestJump.cpp" />
     <ClCompile Include="UnitTestLoad.cpp" />
+    <ClCompile Include="UnitTestLogicalOperation.cpp" />
     <ClCompile Include="UnitTestMain.cpp" />
     <ClCompile Include="UnitTestStackOperation.cpp" />
     <ClCompile Include="UnitTestStore.cpp" />

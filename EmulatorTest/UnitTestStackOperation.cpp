@@ -100,3 +100,18 @@ TEST(TEST_STACK, INST_PLP)
 
 }
 
+
+TEST(TEST_STACK, INST_PHP)
+{
+	cpu.Reset();
+
+	cpu.PS = 0x43;
+	mem[0xFFFC] = PHP;
+
+	CPU clonecpu = cpu;
+	const int _cycle = 3;
+	int usedcycle = RunMachine(_cycle);
+
+	EXPECT_EQ(usedcycle, _cycle);
+	EXPECT_EQ(cpu.PS, mem[cpu.GetStackAddress() + 1]);
+}
