@@ -194,7 +194,7 @@ TEST(TEST_LOGICAL, INST_AND_INDY)
 	mem[0x8000] = 0x37;
 
 	CPU CPUCopy = cpu;
-	const int _cycle = 6;
+	const int _cycle = 5;
 	int usedcycle = RunMachine(_cycle);
 
 	const bool ExpectedNegative = ((0xCC & 0x37) & 0b10000000) > 0;
@@ -207,4 +207,59 @@ TEST(TEST_LOGICAL, INST_AND_INDY)
 
 	CheckCPUFlagModified(cpu, CPUCopy);
 }
+
+TEST(TEST_LOGICAL, INST_BIT_ZP)
+{
+	cpu.Reset();
+	cpu.A = 0xCC;	// 1100 1100
+
+	mem[0xFFFC] = BIT_ZP;
+	mem[0xFFFD] = 0x47;
+
+	mem[0x0047] = 0x33; // 0011 0011
+
+	// 1100 1100
+	// 0011 0011
+	// & 0000 0000
+
+	CPU CPUCopy = cpu;
+	const int _cycle = 3;
+	int usedcycle = RunMachine(_cycle);
+
+	EXPECT_EQ(usedcycle, _cycle);
+	EXPECT_EQ(cpu.A, 0xCC);
+
+	EXPECT_TRUE(cpu.Flag.Z);
+	EXPECT_FALSE(cpu.Flag.V);
+	EXPECT_FALSE(cpu.Flag.N);
+
+	CheckCPUFlagModified(cpu, CPUCopy);
+}
+
+TEST(TEST_LOGICAL, INST_BIT_ABS)
+{
+	cpu.Reset();
+	cpu.A = 0xCC;
+
+	mem[0xFFFC] = BIT_ABS;
+	mem[0xFFFD] = 0x00;
+	mem[0xFFFE] = 0x80;
+
+	mem[0x8000] = 0x33;
+
+	CPU CPUCopy = cpu;
+	const int _cycle = 4;
+	int usedcycle = RunMachine(_cycle);
+
+	EXPECT_EQ(usedcycle, _cycle);
+	EXPECT_EQ(cpu.A, 0xCC);
+
+	EXPECT_TRUE(cpu.Flag.Z);
+	EXPECT_FALSE(cpu.Flag.V);
+	EXPECT_FALSE(cpu.Flag.N);
+
+	CheckCPUFlagModified(cpu, CPUCopy);
+}
+
+
 

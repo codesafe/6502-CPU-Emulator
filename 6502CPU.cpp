@@ -900,6 +900,150 @@ int CPU::Run(Memory &mem, int &cycle)
 			}
 			break;
 
+			// Bit Test Zero page
+			case BIT_ZP:
+			{
+				// Zp에서 읽은 값과 A를 & 테스트 하고 플레그들을 셋팅 / Set if the result if the AND is zero
+				// N 플레그는 7bit, Set to bit 7 of the memory value
+				// V 플레그는 6Bit , Set to bit 6 of the memory value
+				BYTE zpa = Fetch(mem, cycle);
+				BYTE R = ReadByte(mem, zpa, cycle);
+
+				Flag.Z = !(A & R);	
+				Flag.N = (R & FLAG_NEGATIVE) != 0;
+				Flag.V = (R & FLAG_OVERFLOW) != 0;
+			}
+			break;
+
+			case BIT_ABS :
+			{
+				// Zp에서 읽은 값과 A를 & 테스트 하고 플레그들을 셋팅
+				// N 플레그는 7bit / V 플레그는 6Bit
+				WORD addr = FetchWord(mem, cycle);
+				BYTE R = ReadByte(mem, addr, cycle);
+
+				Flag.Z = !(A & R);
+				Flag.N = (R & FLAG_NEGATIVE) != 0;
+				Flag.V = (R & FLAG_OVERFLOW) != 0;
+
+			}
+			break;
+
+			////////////////////////////////////////////////////////////////////////////// Register Transfer
+
+			case TAX :
+			{
+				// Transfer Accumulator to X
+				X = A;
+				cycle--;
+				Flag.Z = (X == 0);
+				Flag.N = (X & FLAG_NEGATIVE) != 0;
+			}
+			break;
+
+			case TAY:
+			{
+				//Transfer Accumulator to Y
+				Y = A;
+				cycle--;
+				Flag.Z = (Y == 0);
+				Flag.N = (Y & FLAG_NEGATIVE) != 0;
+			}
+			break;
+
+			case TXA:
+			{
+				// Transfer X to Accumulator
+				A = X;
+				cycle--;
+				Flag.Z = (A == 0);
+				Flag.N = (A & FLAG_NEGATIVE) != 0;
+			}
+			break;
+
+			case TYA:
+			{
+				// Transfer Y to Accumulator
+				A = Y;
+				cycle--;
+				Flag.Z = (A == 0);
+				Flag.N = (A & FLAG_NEGATIVE) != 0;
+			}
+			break;
+
+
+			////////////////////////////////////////////////////////////////////////////// increase / decrease
+
+			case INX :
+			{
+				// Increment X Register / X,Z,N = X+1
+				X++;
+				cycle--;
+				
+				Flag.Z = (X == 0);
+				Flag.N = (X & FLAG_NEGATIVE) != 0;
+			}
+			break;
+
+			case INY :
+			{
+
+			}
+			break;
+			case DEX:
+			{
+
+			}
+			break;
+
+			case DEY:
+			{
+
+			}
+			break;
+
+			case INC_ZP:
+			{
+
+			}
+			break;
+			case INC_ZPX:
+			{
+
+			}
+			break;
+			case INC_ABS:
+			{
+
+			}
+			break;
+			case INC_ABSX:
+			{
+
+			}
+			break;
+			case DEC_ZP:
+			{
+
+			}
+			break;
+			case DEC_ZPX:
+			{
+
+			}
+			break;
+			case DEC_ABS:
+			{
+
+			}
+			break;
+
+			case DEC_ABSX:
+			{
+
+			}
+			break;
+
 			//////////////////////////////////////////////////////////////////////////////
 
 			case NOP :

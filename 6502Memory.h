@@ -49,6 +49,8 @@ class Memory
 			memory[addr] = value >> 8;
 			memory[addr+1] = value & 0xFF;
 		}
+
+		WORD UpLoadProgram(BYTE *code, int codesize);
 };
 
 

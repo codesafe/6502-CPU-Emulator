@@ -41,10 +41,13 @@
   <ItemGroup>
     <ClCompile Include="..\6502CPU.cpp" />
     <ClCompile Include="..\6502Memory.cpp" />
+    <ClCompile Include="UnitTestIncDec.cpp" />
     <ClCompile Include="UnitTestJump.cpp" />
     <ClCompile Include="UnitTestLoad.cpp" />
     <ClCompile Include="UnitTestLogicalOperation.cpp" />
     <ClCompile Include="UnitTestMain.cpp" />
+    <ClCompile Include="UnitTestRegisterTransfer.cpp" />
+    <ClCompile Include="UnitTestSampleProgram.cpp" />
     <ClCompile Include="UnitTestStackOperation.cpp" />
     <ClCompile Include="UnitTestStore.cpp" />
   </ItemGroup>

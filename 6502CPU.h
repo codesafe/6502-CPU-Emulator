@@ -39,23 +39,25 @@ BYTE N : 1; //7: Negative
 #define FLAG_INTERRUPT_DISABLE		0b00000100
 #define FLAG_DECIMAL_MODE			0b00001000
 #define FLAG_BREAK					0b00010000
-#define FLAG_OVERFLOW				0b00100000
-#define FLAG_UNUSED					0b01000000
+#define FLAG_UNUSED					0b00100000
+#define FLAG_OVERFLOW				0b01000000
 #define FLAG_NEGATIVE				0b10000000
 
 // Instruction
 /*
 	구현된것들은 () 처리
-	(AND) (EOR) (ORA)
+	(AND) (EOR) (ORA) (BIT)
 	(JMP) (JSR) (RTS)
 	(NOP)
 	(LDA) (LDX) (LDY)
 	(TXS) (TSX) (PHA) (PHP) (PLA) (PLP) 
 	(STA) (STX) (STY)
-	ADC  ASL BCC BCS BEQ BIT BMI BNE BPL BRK BVC BVS CLC CLD CLI CLV CMP
-	CPX CPY DEC DEX DEY  INC INX INY LSR 
-	ROL ROR RTI  SBC SEC SED SEI  TAX TAY  TXA
-	TYA
+	ADC  ASL BCC BCS BEQ BMI BNE BPL BRK BVC BVS CLC CLD CLI CLV CMP
+	CPX CPY 
+	DEC DEX DEY INC INX INY 
+	LSR 
+	ROL ROR RTI  SBC SEC SED SEI  
+	(TAX) (TAY)  (TXA) (TYA)
 */
 
 // LDA (LoaD Accumulator)
@@ -148,6 +150,32 @@ BYTE N : 1; //7: Negative
 #define EOR_ABSY	0x59
 #define EOR_INDX	0x41
 #define EOR_INDY	0x51
+
+// Bit Test
+#define BIT_ZP		0x24
+#define BIT_ABS		0x2C
+
+
+// Register Transfer
+#define TAX			0xAA
+#define TAY			0xA8
+#define TXA			0x8A
+#define TYA			0x98
+
+// increase / decrease
+#define INX			0xE8
+#define INY			0xC8
+#define DEX			0xCA
+#define DEY			0x88
+#define INC_ZP		0xE6
+#define INC_ZPX		0xF6
+#define INC_ABS		0xEE
+#define INC_ABSX	0xFE
+#define DEC_ZP		0xC6
+#define DEC_ZPX		0xD6
+#define DEC_ABS		0xCE
+#define DEC_ABSX	0xDE
+
 
 
 struct StatusFlags
