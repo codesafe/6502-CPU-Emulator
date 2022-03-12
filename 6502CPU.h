@@ -234,6 +234,22 @@ public:
 	void WriteByte(Memory& mem, BYTE value, int addr, int& cycle);
 	void WriteWord(Memory& mem, WORD value, int addr, int& cycle);
 
+	//////////////////////////////////////////////////////////////////////////
+
+	// memory Addressing mode
+	// Zero page
+	WORD addr_mode_ZP(Memory& mem, int& cycle);
+	// Zero page + X
+	WORD addr_mode_ZPX(Memory& mem, int& cycle);
+	// ABS
+	WORD addr_mode_ABS(Memory& mem, int& cycle);
+	// ABS + X
+	WORD addr_mode_ABSX(Memory& mem, int& cycle);
+	// ABS + Y
+	WORD addr_mode_ABSY(Memory& mem, int& cycle);
+
+	//////////////////////////////////////////////////////////////////////////
+
 	void PushStackByte(Memory& mem, BYTE value, int& cycle);
 	void PushStackWord(Memory& mem, WORD value, int& cycle);
 	BYTE PopStackByte(Memory& mem, int& cycle);
@@ -245,6 +261,8 @@ public:
 	void LoadToRegisterFromZP(Memory& mem, int& cycle, BYTE& reg);
 
 	WORD GetStackAddress();
+
+
 };
 
 #endif

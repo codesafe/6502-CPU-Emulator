@@ -199,13 +199,11 @@ int CPU::Run(Memory &mem, int &cycle)
 
 			case LDA_ZP: // 3 cycle
 			{
-				//LoadToRegisterFromZP(mem, cycle, A);
-
 				// $0000 to $00FF
 				// Zero page에서 읽어서 A로
-				BYTE zpa = Fetch(mem, cycle);
+				WORD addr = addr_mode_ZP(mem, cycle);
 				// Zero page읽으면서 cycle 소모
-				A = ReadByte(mem, zpa, cycle);
+				A = ReadByte(mem, addr, cycle);
 				SetZeroNegative(A);
 			}
 			break;
@@ -214,9 +212,12 @@ int CPU::Run(Memory &mem, int &cycle)
 			{
 				// Zero page의 주소와 X 레지스터를 더한 주소에서 읽어 A로..
 				// X 레지스터에 $0F이고 LDA $80, X 이면 $80+$0F = $8F에서 A로 읽게됨
+/*				
 				BYTE zpa = Fetch(mem, cycle);
 				zpa += X;
 				cycle--;
+*/
+				WORD addr = addr_mode_ZPX(mem, cycle);
 				// Zero page읽으면서 cycle 소모
 				A = ReadByte(mem, zpa, cycle);
 
@@ -227,7 +228,7 @@ int CPU::Run(Memory &mem, int &cycle)
 			// 절대 주소 지정을 사용하는 명령어는 대상 위치를 식별하기 위해 전체 16 비트 주소를 포함합니다.
 			case LDA_ABS: // 4 cycle
 			{
-				WORD addr = FetchWord(mem, cycle);
+				WORD addr = addr_mode_ABS(mem, cycle);
 				A = ReadByte(mem, addr, cycle);
 				SetZeroNegative(A);
 			}
@@ -236,17 +237,19 @@ int CPU::Run(Memory &mem, int &cycle)
 			case LDA_ABSX:// 4 cycle / 페이지 넘어가면 1 cycle 추가
 			{
 				// 메모리엑세스 페이지를 넘어가면 추가 사이클이 소요됨 (하드웨어가 그렇게 만들어짐?)
+/*				
 				BYTE lo = Fetch(mem, cycle);
 				BYTE hi = Fetch(mem, cycle);
 				
 				WORD t = lo + X;
 				if( t > 0xFF ) cycle--;
 				WORD addr = (lo | (hi << 8)) + X;
-
+*/				
 // 				WORD addr = FetchWord(mem, cycle);
 // 				if ( (addr + X) - addr >= 0xFF )
 // 					cycle--;	// page 넘어감
 
+				WORD addr = addr_mode_ABSX(mem, cycle);
 				A = ReadByte(mem, addr, cycle);
 				SetZeroNegative(A);
 			}
@@ -254,13 +257,15 @@ int CPU::Run(Memory &mem, int &cycle)
 
 			case LDA_ABSY:	// 4 cycle / 페이지 넘어가면 1 cycle 추가
 			{
+/*				
 				BYTE lo = Fetch(mem, cycle);
 				BYTE hi = Fetch(mem, cycle);
 
 				WORD t = lo + Y;
 				if (t > 0xFF) cycle--;
 				WORD addr = (lo | (hi << 8)) + Y;
-
+*/
+				WORD addr = addr_mode_ABSY(mem, cycle);
 				A = ReadByte(mem, addr, cycle);
 				SetZeroNegative(A);
 
@@ -310,18 +315,20 @@ int CPU::Run(Memory &mem, int &cycle)
 
 			case LDX_ZP:	// 3cycle
 			{
-				//LoadToRegisterFromZP(mem, cycle, X);
- 				BYTE zpa = Fetch(mem, cycle);
- 				X = ReadByte(mem, zpa, cycle);
+				WORD addr = addr_mode_ZP(mem, cycle);
+ 				X = ReadByte(mem, addr, cycle);
  				SetZeroNegative(X);
 			}
 			break;
 
 			case LDX_ZPY:	// 4cycle
 			{
+/*				
 				BYTE zpage = Fetch(mem, cycle);
 				zpage += Y;
 				cycle--;
+*/
+				WORD addr = addr_mode_ZPY(mem, cycle);
 				X = ReadByte(mem, zpage, cycle);
 				SetZeroNegative(X);
 			}
@@ -329,7 +336,7 @@ int CPU::Run(Memory &mem, int &cycle)
 
 			case LDX_ABS:	// 4cycle
 			{
-				WORD addr = FetchWord(mem, cycle);
+				WORD addr = addr_mode_ABS(mem, cycle);
 				X = ReadByte(mem, addr, cycle);
 				SetZeroNegative(X);
 
@@ -338,13 +345,7 @@ int CPU::Run(Memory &mem, int &cycle)
 
 			case LDX_ABSY:	// 4 ~ 5 cycle
 			{
-				BYTE lo = Fetch(mem, cycle);
-				BYTE hi = Fetch(mem, cycle);
-
-				WORD t = lo + Y;
-				if (t > 0xFF) cycle--;
-				WORD addr = (lo | (hi << 8)) + Y;
-
+				WORD addr = addr_mode_ABSY(mem, cycle);
 				X = ReadByte(mem, addr, cycle);
 				SetZeroNegative(X);
 
@@ -355,7 +356,6 @@ int CPU::Run(Memory &mem, int &cycle)
 
 			case LDY_IM : // 2 cycle
 			{
-				//LoadToRegister(mem, cycle, Y);
 				Y = Fetch(mem, cycle);
 				SetZeroNegative(Y);
 			}
@@ -363,26 +363,23 @@ int CPU::Run(Memory &mem, int &cycle)
 
 			case LDY_ZP: // 3 cycle
 			{
-				//LoadToRegisterFromZP(mem, cycle, Y);
-				BYTE zpa = Fetch(mem, cycle);
-				Y = ReadByte(mem, zpa, cycle);
+				WORD addr = addr_mode_ZP(mem, cycle);
+				Y = ReadByte(mem, addr, cycle);
 				SetZeroNegative(Y);
 			}
 			break;
 
 			case LDY_ZPX : // 4 cycle
 			{
-				BYTE zpage = Fetch(mem, cycle);
-				zpage += X;
-				cycle--;
-				Y = ReadByte(mem, zpage, cycle);
+				WORD addr = addr_mode_ZPX(mem, cycle);
+				Y = ReadByte(mem, addr, cycle);
 				SetZeroNegative(Y);
 			}
 			break;
 
 			case LDY_ABS : // 4 cycle
 			{
-				WORD addr = FetchWord(mem, cycle);
+				WORD addr = addr_mode_ABS(mem, cycle);
 				Y = ReadByte(mem, addr, cycle);
 				SetZeroNegative(Y);
 			}
@@ -390,13 +387,7 @@ int CPU::Run(Memory &mem, int &cycle)
 
 			case LDY_ABSX : // 4~5 cycle
 			{
-				BYTE lo = Fetch(mem, cycle);
-				BYTE hi = Fetch(mem, cycle);
-
-				WORD t = lo + X;
-				if (t > 0xFF) cycle--;
-				WORD addr = (lo | (hi << 8)) + X;
-
+				WORD addr = addr_mode_ABSX(mem, cycle);
 				Y = ReadByte(mem, addr, cycle);
 				SetZeroNegative(Y);
 			}
@@ -407,25 +398,23 @@ int CPU::Run(Memory &mem, int &cycle)
 			case STA_ZP	:	// 3 cycle
 			{
 				// ZeroPage에 A레지스터 내용 쓰기
-				BYTE zpage = Fetch(mem, cycle);
-				WriteByte(mem, A, zpage, cycle);
+				WORD addr = addr_mode_ZP(mem, cycle);
+				WriteByte(mem, A, addr, cycle);
 			}
 			break;
 
 			case STA_ZPX :	// 4 cycle
 			{
 				// ZP + X에 A레지스터 내용쓰기
-				BYTE zpage = Fetch(mem, cycle);
-				zpage += X;
-				cycle--;
-				WriteByte(mem, A, zpage, cycle);
+				WORD addr = addr_mode_ZPX(mem, cycle);
+				WriteByte(mem, A, addr, cycle);
 			}
 			break;
 
 			case STA_ABS:	// 4 cycle
 			{
 				// WORD address에 A레지스터 내용 쓰기
-				WORD addr = FetchWord(mem, cycle);
+				WORD addr = addr_mode_ABS(mem, cycle);
 				WriteByte(mem, A, addr, cycle);
 			}
 			break;
@@ -443,9 +432,7 @@ int CPU::Run(Memory &mem, int &cycle)
 			case STA_ABSY:	// 5 cycle
 			{
 				// WORD address + Y에 A레지스터 내용 쓰기
-				WORD addr = FetchWord(mem, cycle);
-				addr += Y;
-				cycle--;
+				WORD addr = addr_mode_ABSY(mem, cycle);
 				WriteByte(mem, A, addr, cycle);
 			}
 			break;
@@ -477,25 +464,23 @@ int CPU::Run(Memory &mem, int &cycle)
 			case STX_ZP	:	// 3 cycle
 			{
 				// ZeroPage에 X레지스터 내용 쓰기
-				BYTE zpage = Fetch(mem, cycle);
-				WriteByte(mem, X, zpage, cycle);
+				WORD addr = addr_mode_ZP(mem, cycle);
+				WriteByte(mem, X, addr, cycle);
 			}
 			break;
 
 			case STX_ZPY:	// 4 cycle
 			{
 				// ZP + X에 X레지스터 내용쓰기
-				BYTE zpage = Fetch(mem, cycle);
-				zpage += Y;
-				cycle--;
-				WriteByte(mem, X, zpage, cycle);
+				WORD addr = addr_mode_ZPX(mem, cycle);
+				WriteByte(mem, X, addr, cycle);
 			}
 			break;
 
 			case STX_ABS:	// 4 cycle
 			{
 				// WORD address에 X레지스터 내용 쓰기
-				WORD addr = FetchWord(mem, cycle);
+				WORD addr = addr_mode_ABS(mem, cycle);
 				WriteByte(mem, X, addr, cycle);
 			}
 			break;
@@ -505,8 +490,8 @@ int CPU::Run(Memory &mem, int &cycle)
 			case STY_ZP:	// 3 cycle
 			{
 				// ZeroPage에 X레지스터 내용 쓰기
-				BYTE zpage = Fetch(mem, cycle);
-				WriteByte(mem, Y, zpage, cycle);
+				WORD addr = addr_mode_ZP(mem, cycle);
+				WriteByte(mem, Y, addr, cycle);
 
 			}
 			break;
@@ -514,17 +499,15 @@ int CPU::Run(Memory &mem, int &cycle)
 			case STY_ZPX:	// 4 cycle
 			{
 				// ZP + X에 Y레지스터 내용쓰기
-				BYTE zpage = Fetch(mem, cycle);
-				zpage += X;
-				cycle--;
-				WriteByte(mem, Y, zpage, cycle);
+				WORD addr = addr_mode_ZPX(mem, cycle);
+				WriteByte(mem, Y, addr, cycle);
 			}
 			break;
 
 			case STY_ABS:	// 4 cycle
 			{
 				// WORD address에 Y레지스터 내용 쓰기
-				WORD addr = FetchWord(mem, cycle);
+				WORD addr = addr_mode_ABS(mem, cycle);
 				WriteByte(mem, Y, addr, cycle);
 			}
 			break;
@@ -549,7 +532,7 @@ int CPU::Run(Memory &mem, int &cycle)
 
 			case JMP_ABS :	// 3 cycle
 			{
-				WORD addr = FetchWord(mem, cycle);
+				WORD addr = addr_mode_ABS(mem, cycle);
 				PC = addr;
 			}
 			break;
@@ -646,25 +629,23 @@ int CPU::Run(Memory &mem, int &cycle)
 
 			case AND_ZP:	// 3 cycle
 			{
-				BYTE zpa = Fetch(mem, cycle);
-				A &= ReadByte(mem, zpa, cycle);
+				WORD addr = addr_mode_ZP(mem, cycle);
+				A &= ReadByte(mem, addr, cycle);
 				SetZeroNegative(A);
 			}
 			break;
 
 			case AND_ZPX:	// 4 cycle
 			{
-				BYTE zpa = Fetch(mem, cycle);
-				zpa += X;
-				cycle--;
-				A &= ReadByte(mem, zpa, cycle);
+				WORD addr = addr_mode_ZPX(mem, cycle);
+				A &= ReadByte(mem, addr, cycle);
 				SetZeroNegative(A);
 			}
 			break;
 
 			case AND_ABS:	// 4cycle
 			{
-				WORD addr = FetchWord(mem, cycle);
+				WORD addr = addr_mode_ABS(mem, cycle);
 				A &= ReadByte(mem, addr, cycle);
 				SetZeroNegative(A);
 			}
@@ -672,12 +653,7 @@ int CPU::Run(Memory &mem, int &cycle)
 
 			case AND_ABSX:	// 4 cycle / 페이지 넘어가면 1 cycle 추가
 			{
-				BYTE lo = Fetch(mem, cycle);
-				BYTE hi = Fetch(mem, cycle);
-				WORD t = lo + X;
-				if (t > 0xFF) cycle--;
-				WORD addr = (lo | (hi << 8)) + X;
-
+				WORD addr = addr_mode_ABSX(mem, cycle);
 				A &= ReadByte(mem, addr, cycle);
 				SetZeroNegative(A);
 			}
@@ -685,12 +661,7 @@ int CPU::Run(Memory &mem, int &cycle)
 
 			case AND_ABSY:	// 4 cycle / 페이지 넘어가면 1 cycle 추가
 			{
-				BYTE lo = Fetch(mem, cycle);
-				BYTE hi = Fetch(mem, cycle);
-				WORD t = lo + Y;
-				if (t > 0xFF) cycle--;
-				WORD addr = (lo | (hi << 8)) + Y;
-
+				WORD addr = addr_mode_ABSY(mem, cycle);
 				A &= ReadByte(mem, addr, cycle);
 				SetZeroNegative(A);
 			}
@@ -734,25 +705,23 @@ int CPU::Run(Memory &mem, int &cycle)
 
 			case ORA_ZP:
 			{
-				BYTE zpa = Fetch(mem, cycle);
-				A |= ReadByte(mem, zpa, cycle);
+				WORD addr = addr_mode_ZP(mem, cycle);
+				A |= ReadByte(mem, addr, cycle);
 				SetZeroNegative(A);
 			}
 			break;
 
 			case ORA_ZPX:
 			{
-				BYTE zpa = Fetch(mem, cycle);
-				zpa += X;
-				cycle--;
-				A |= ReadByte(mem, zpa, cycle);
+				WORD addr = addr_mode_ZPX(mem, cycle);
+				A |= ReadByte(mem, addr, cycle);
 				SetZeroNegative(A);
 			}
 			break;
 
 			case ORA_ABS:
 			{
-				WORD addr = FetchWord(mem, cycle);
+				WORD addr = addr_mode_ABS(mem, cycle);
 				A |= ReadByte(mem, addr, cycle);
 				SetZeroNegative(A);
 			}
@@ -760,12 +729,7 @@ int CPU::Run(Memory &mem, int &cycle)
 
 			case ORA_ABSX:
 			{
-				BYTE lo = Fetch(mem, cycle);
-				BYTE hi = Fetch(mem, cycle);
-				WORD t = lo + X;
-				if (t > 0xFF) cycle--;
-				WORD addr = (lo | (hi << 8)) + X;
-
+				WORD addr = addr_mode_ABSX(mem, cycle);
 				A |= ReadByte(mem, addr, cycle);
 				SetZeroNegative(A);
 			}
@@ -773,12 +737,7 @@ int CPU::Run(Memory &mem, int &cycle)
 
 			case ORA_ABSY:
 			{
-				BYTE lo = Fetch(mem, cycle);
-				BYTE hi = Fetch(mem, cycle);
-				WORD t = lo + Y;
-				if (t > 0xFF) cycle--;
-				WORD addr = (lo | (hi << 8)) + Y;
-
+				WORD addr = addr_mode_ABSY(mem, cycle);
 				A |= ReadByte(mem, addr, cycle);
 				SetZeroNegative(A);
 			}
@@ -822,25 +781,23 @@ int CPU::Run(Memory &mem, int &cycle)
 
 			case EOR_ZP:
 			{
-				BYTE zpa = Fetch(mem, cycle);
-				A ^= ReadByte(mem, zpa, cycle);
+				WORD addr = addr_mode_ZP(mem, cycle);
+				A ^= ReadByte(mem, addr, cycle);
 				SetZeroNegative(A);
 			}
 			break;
 
 			case EOR_ZPX:
 			{
-				BYTE zpa = Fetch(mem, cycle);
-				zpa += X;
-				cycle--;
-				A ^= ReadByte(mem, zpa, cycle);
+				WORD addr = addr_mode_ZPX(mem, cycle);
+				A ^= ReadByte(mem, addr, cycle);
 				SetZeroNegative(A);
 			}
 			break;
 
 			case EOR_ABS:
 			{
-				WORD addr = FetchWord(mem, cycle);
+				WORD addr = addr_mode_ABS(mem, cycle);
 				A ^= ReadByte(mem, addr, cycle);
 				SetZeroNegative(A);
 			}
@@ -848,12 +805,7 @@ int CPU::Run(Memory &mem, int &cycle)
 
 			case EOR_ABSX:
 			{
-				BYTE lo = Fetch(mem, cycle);
-				BYTE hi = Fetch(mem, cycle);
-				WORD t = lo + X;
-				if (t > 0xFF) cycle--;
-				WORD addr = (lo | (hi << 8)) + X;
-
+				WORD addr = addr_mode_ABSX(mem, cycle);
 				A ^= ReadByte(mem, addr, cycle);
 				SetZeroNegative(A);
 			}
@@ -861,12 +813,7 @@ int CPU::Run(Memory &mem, int &cycle)
 
 			case EOR_ABSY:
 			{
-				BYTE lo = Fetch(mem, cycle);
-				BYTE hi = Fetch(mem, cycle);
-				WORD t = lo + Y;
-				if (t > 0xFF) cycle--;
-				WORD addr = (lo | (hi << 8)) + Y;
-
+				WORD addr = addr_mode_ABSY(mem, cycle);
 				A ^= ReadByte(mem, addr, cycle);
 				SetZeroNegative(A);
 			}
@@ -906,8 +853,8 @@ int CPU::Run(Memory &mem, int &cycle)
 				// Zp에서 읽은 값과 A를 & 테스트 하고 플레그들을 셋팅 / Set if the result if the AND is zero
 				// N 플레그는 7bit, Set to bit 7 of the memory value
 				// V 플레그는 6Bit , Set to bit 6 of the memory value
-				BYTE zpa = Fetch(mem, cycle);
-				BYTE R = ReadByte(mem, zpa, cycle);
+				WORD addr = addr_mode_ZP(mem, cycle);
+				BYTE R = ReadByte(mem, addr, cycle);
 
 				Flag.Z = !(A & R);	
 				Flag.N = (R & FLAG_NEGATIVE) != 0;
@@ -919,7 +866,7 @@ int CPU::Run(Memory &mem, int &cycle)
 			{
 				// Zp에서 읽은 값과 A를 & 테스트 하고 플레그들을 셋팅
 				// N 플레그는 7bit / V 플레그는 6Bit
-				WORD addr = FetchWord(mem, cycle);
+				WORD addr = addr_mode_ABS(mem, cycle);
 				BYTE R = ReadByte(mem, addr, cycle);
 
 				Flag.Z = !(A & R);
@@ -979,7 +926,6 @@ int CPU::Run(Memory &mem, int &cycle)
 				// Increment X Register / X,Z,N = X+1
 				X++;
 				cycle--;
-				
 				Flag.Z = (X == 0);
 				Flag.N = (X & FLAG_NEGATIVE) != 0;
 			}
@@ -987,60 +933,117 @@ int CPU::Run(Memory &mem, int &cycle)
 
 			case INY :
 			{
-
+				// Increment Y Register / Y,Z,N = Y+1
+				Y++;
+				cycle--;
+				Flag.Z = (Y == 0);
+				Flag.N = (Y & FLAG_NEGATIVE) != 0;
 			}
 			break;
 			case DEX:
 			{
+				// Decrease X Register / X,Z,N = X+1
+				X--;
+				cycle--;
+				Flag.Z = (X == 0);
+				Flag.N = (X & FLAG_NEGATIVE) != 0;
 
 			}
 			break;
 
 			case DEY:
 			{
+				// Decrement Y Register / Y,Z,N = Y+1
+				Y--;
+				cycle--;
+				Flag.Z = (Y == 0);
+				Flag.N = (Y & FLAG_NEGATIVE) != 0;
 
 			}
 			break;
 
 			case INC_ZP:
 			{
-
+				// Increment Memory by One / M + 1 -> M
+				WORD addr = addr_mode_ZP(mem, cycle);
+				BYTE v = ReadByte(mem, addr, cycle);
+				v++;
+				cycle--;
+				WriteByte(mem, v, addr, cycle);
+				SetZeroNegative(v);
 			}
 			break;
 			case INC_ZPX:
 			{
-
+				WORD addr = addr_mode_ZPX(mem, cycle);
+				BYTE v = ReadByte(mem, addr, cycle);
+				v++;
+				cycle--;
+				WriteByte(mem, v, addr, cycle);
+				SetZeroNegative(v);
 			}
 			break;
 			case INC_ABS:
 			{
-
+				WORD addr = addr_mode_ABS(mem, cycle);
+				BYTE v = ReadByte(mem, addr, cycle);
+				v++;
+				cycle--;
+				WriteByte(mem, v, addr, cycle);
+				SetZeroNegative(v);				
 			}
 			break;
 			case INC_ABSX:
 			{
-
+				WORD addr = addr_mode_ABSX(mem, cycle);
+				BYTE v = ReadByte(mem, addr, cycle);
+				v++;
+				cycle--;
+				WriteByte(mem, v, addr, cycle);
+				SetZeroNegative(v);				
 			}
 			break;
 			case DEC_ZP:
 			{
+				// Decrement Memory by One / M - 1 -> M
+				WORD addr = addr_mode_ZP(mem, cycle);
+				BYTE v = ReadByte(mem, addr, cycle);
+				v--;
+				cycle--;
+				WriteByte(mem, v, zpage, cycle);
+				SetZeroNegative(v);
 
 			}
 			break;
 			case DEC_ZPX:
 			{
-
+				WORD addr = addr_mode_ZPX(mem, cycle);
+				BYTE v = ReadByte(mem, addr, cycle);
+				v--;
+				cycle--;
+				WriteByte(mem, v, addr, cycle);
+				SetZeroNegative(v);
 			}
 			break;
-			case DEC_ABS:
+			case DEC_ABS:	// 6 cycle
 			{
-
+				WORD addr = addr_mode_ABS(mem, cycle);
+				BYTE v = ReadByte(mem, addr, cycle);
+				v--;
+				cycle--;
+				WriteByte(mem, v, addr, cycle);
+				SetZeroNegative(v);
 			}
 			break;
 
-			case DEC_ABSX:
+			case DEC_ABSX:	// 7 cycle
 			{
-
+				WORD addr = addr_mode_ABSX(mem, cycle);
+				BYTE v = ReadByte(mem, addr, cycle);
+				v--;
+				cycle--;
+				WriteByte(mem, v, addr, cycle);
+				SetZeroNegative(v);
 			}
 			break;
 
@@ -1073,4 +1076,59 @@ void CPU::LoadToRegisterFromZP(Memory& mem, int& cycle, BYTE& reg)
 	BYTE zpa = Fetch(mem, cycle);
 	reg = ReadByte(mem, zpa, cycle);
 	SetZeroNegative(reg);
+}
+
+////////////////////////////////////////////////////////////////////////////// memory addressing mode
+
+// ZeroPage
+WORD  CPU::addr_mode_ZP(Memory &mem, int &cycle)
+{
+	BYTE address = Fetch(mem, cycle);
+	return address;
+}
+
+// Zero page + X
+WORD CPU::addr_mode_ZPX(Memory& mem, int& cycle)
+{
+	BYTE address = Fetch(mem, cycle) + X;
+	cycle--;
+	return address;
+}
+
+// Zero page + X
+WORD CPU::addr_mode_ZPY(Memory& mem, int& cycle)
+{
+	BYTE address = Fetch(mem, cycle) + Y;
+	cycle--;
+	return address;
+}
+
+// ABS
+WORD CPU::addr_mode_ABS(Memory& mem, int& cycle)
+{
+	WORD address = FetchWord(mem, cycle);
+	return address;
+}
+
+// ABS + X
+WORD CPU::addr_mode_ABSX(Memory& mem, int& cycle)
+{
+	BYTE lo = Fetch(mem, cycle);
+	BYTE hi = Fetch(mem, cycle);
+	WORD t = lo + X;
+	if (t > 0xFF) cycle--;
+	WORD address = (lo | (hi << 8)) + X;
+	return address;
+}
+
+// ABS + Y
+WORD CPU::addr_mode_ABSY(Memory& mem, int& cycle)
+{
+	BYTE lo = Fetch(mem, cycle);
+	BYTE hi = Fetch(mem, cycle);
+
+	WORD t = lo + Y;
+	if (t > 0xFF) cycle--;
+	WORD addr = (lo | (hi << 8)) + Y;
+	return address;
 }
