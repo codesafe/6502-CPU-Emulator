@@ -1,14 +1,13 @@
 #include "UnitTestMain.h"
 
-TEST(TEST_TRANSFER_REGISTER, INST_TAX)
+TEST(TEST_INCREASE_DECREASE, INST_INX)
 {
 	cpu.Reset();
 	cpu.A = 0x77;
 	cpu.X = 0x88;
 	cpu.Flag.Z = cpu.Flag.N = true;
 
-	// Transfer Accumulator to X
-	mem[0xFFFC] = TAX;
+	mem[0xFFFC] = INX;
 
 	CPU CPUCopy = cpu;
 	const int _cycle = 2;
