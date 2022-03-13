@@ -9,6 +9,7 @@
 
 class Memory;
 
+
 #define REGISTER_A		0
 #define REGISTER_X		1
 #define REGISTER_Y		2
@@ -52,10 +53,10 @@ BYTE N : 1; //7: Negative
 	(LDA) (LDX) (LDY)
 	(TXS) (TSX) (PHA) (PHP) (PLA) (PLP) 
 	(STA) (STX) (STY)
-	ADC  SBC CMP CPX CPY 
+	(ADC)  SBC (CMP) (CPX) (CPY)
 	ASL BCC BCS BEQ BMI BNE BPL BRK BVC BVS CLC CLD CLI CLV 
 	(DEC) (DEX) (DEY) (INC) (INX) (INY) 
-	LSR 
+	LSR
 	ROL ROR RTI  SEC SED SEI  
 	(TAX) (TAY)  (TXA) (TYA)
 */
@@ -228,6 +229,7 @@ struct StatusFlags
 class CPU
 {
 private:
+
 public:
 	// Registor
 	BYTE	A;		// Accumulator
@@ -260,6 +262,9 @@ public:
 	void SetFlag(BYTE flag, bool set);
 
 	void SetZeroNegative(BYTE Register);
+	void SetCarryFlag(WORD value);
+	void SetOverflow(BYTE oldv0, BYTE v0, BYTE v1);
+
 	BYTE Fetch(Memory& mem, int& cycle);
 	WORD FetchWord(Memory& mem, int& cycle);
 
@@ -284,11 +289,15 @@ public:
 	WORD addr_mode_ABSX(Memory& mem, int& cycle);
 	// ABS + X : Page 넘어가는것 무시
 	WORD addr_mode_ABSX_NoPage(Memory& mem, int& cycle);
-
 	// ABS + Y
 	WORD addr_mode_ABSY(Memory& mem, int& cycle);
 	// ABS + Y : Page 넘어가는것 무시
 	WORD addr_mode_ABSY_NoPage(Memory& mem, int& cycle);
+
+	// Indexed indirect X
+	WORD addr_mode_INDX(Memory& mem, int& cycle);
+	// Indexed indirect Y
+	WORD addr_mode_INDY(Memory& mem, int& cycle);
 
 	//////////////////////////////////////////////////////////////////////////
 
@@ -304,6 +313,12 @@ public:
 
 	WORD GetStackAddress();
 
+	//////////////////////////////////////////////////////////////////////////	Arithmetic
+
+	void Execute_ADC(BYTE v);
+	void Execute_CMP(BYTE v);
+	void Execute_CPX(BYTE v);
+	void Execute_CPY(BYTE v);
 
 };
 

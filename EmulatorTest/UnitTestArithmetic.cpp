@@ -3,32 +3,253 @@
 TEST(TEST_ARITHMETIC, INST_ADC_IM)
 {
 	cpu.Reset();
-	cpu.X = 0x53;
+
+	cpu.A = 0b10110001;		// B1
+	cpu.Flag.C = false;
 	cpu.Flag.Z = cpu.Flag.N = true;
 
-	mem[0xFFFC] = INX;
+	mem[0xFFFC] = ADC_IM;
+	mem[0xFFFD] = 0b01111001;	// 79
 
 	CPU CPUCopy = cpu;
 	const int _cycle = 2;
 	int usedcycle = RunMachine(_cycle);
 
 	EXPECT_EQ(usedcycle, _cycle);
-	EXPECT_EQ(cpu.X, 0x54);
+	EXPECT_EQ(cpu.A, 0x2A);	// 12A
 
 	EXPECT_FALSE(cpu.Flag.Z);
 	EXPECT_FALSE(cpu.Flag.N);
+	EXPECT_TRUE(cpu.Flag.C);
+	EXPECT_TRUE(cpu.Flag.V);
 }
 
-#define ADC_IM		0x69
-#define ADC_ZP		0x65
-#define ADC_ZPX		0x75
-#define ADC_ABS		0x6D
-#define ADC_ABSX	0x7D
-#define ADC_ABSY	0x79
-#define ADC_INDX	0x61
-#define ADC_INDY	0x71
 
-#define SBC_IM		0xE9
+TEST(TEST_ARITHMETIC, INST_ADC_ZP)
+{
+	cpu.Reset();
+
+	cpu.A = -128;
+	cpu.Flag.C = false;
+
+	mem[0xFFFC] = ADC_ZP;
+	mem[0xFFFD] = 0x10;
+	mem[0x0010] = -1;
+
+
+	CPU CPUCopy = cpu;
+	const int _cycle = 3;
+	int usedcycle = RunMachine(_cycle);
+
+	EXPECT_EQ(usedcycle, _cycle);
+	EXPECT_EQ(cpu.A, 127);
+
+	EXPECT_TRUE(cpu.Flag.C);
+	EXPECT_FALSE(cpu.Flag.Z);
+	EXPECT_FALSE(cpu.Flag.N);
+	EXPECT_TRUE(cpu.Flag.V);
+}
+
+TEST(TEST_ARITHMETIC, INST_ADC_ZPX)
+{
+	cpu.Reset();
+
+	cpu.A = -128;
+	cpu.X = 0x04;
+	cpu.Flag.C = false;
+
+	mem[0xFFFC] = ADC_ZPX;
+	mem[0xFFFD] = 0x10;
+	mem[0x0014] = -1;
+
+
+	CPU CPUCopy = cpu;
+	const int _cycle = 4;
+	int usedcycle = RunMachine(_cycle);
+
+	EXPECT_EQ(usedcycle, _cycle);
+	EXPECT_EQ(cpu.A, 127);
+
+	EXPECT_TRUE(cpu.Flag.C);
+	EXPECT_FALSE(cpu.Flag.Z);
+	EXPECT_FALSE(cpu.Flag.N);
+	EXPECT_TRUE(cpu.Flag.V);
+}
+
+
+TEST(TEST_ARITHMETIC, INST_ADC_ABS)
+{
+	cpu.Reset();
+
+	cpu.A = -128;
+	cpu.Flag.C = false;
+
+	mem[0xFFFC] = ADC_ABS;
+	mem[0xFFFD] = 0x00;
+	mem[0xFFFE] = 0x80;
+
+	mem[0x8000] = -1;
+
+	CPU CPUCopy = cpu;
+	const int _cycle = 4;
+	int usedcycle = RunMachine(_cycle);
+
+	EXPECT_EQ(usedcycle, _cycle);
+	EXPECT_EQ(cpu.A, 127);
+
+	EXPECT_TRUE(cpu.Flag.C);
+	EXPECT_FALSE(cpu.Flag.Z);
+	EXPECT_FALSE(cpu.Flag.N);
+	EXPECT_TRUE(cpu.Flag.V);
+}
+
+
+TEST(TEST_ARITHMETIC, INST_ADC_ABSX)
+{
+	cpu.Reset();
+
+	cpu.A = -128;
+	cpu.X = 0x04;
+	cpu.Flag.C = false;
+
+	mem[0xFFFC] = ADC_ABSX;
+	mem[0xFFFD] = 0x80;
+	mem[0xFFFE] = 0x44;
+
+	mem[0x4484] = -1;
+
+
+	CPU CPUCopy = cpu;
+	const int _cycle = 4;
+	int usedcycle = RunMachine(_cycle);
+
+	EXPECT_EQ(usedcycle, _cycle);
+	EXPECT_EQ(cpu.A, 127);
+
+	EXPECT_TRUE(cpu.Flag.C);
+	EXPECT_FALSE(cpu.Flag.Z);
+	EXPECT_FALSE(cpu.Flag.N);
+	EXPECT_TRUE(cpu.Flag.V);
+}
+
+TEST(TEST_ARITHMETIC, INST_ADC_ABSY)
+{
+	cpu.Reset();
+
+	cpu.A = -128;
+	cpu.Y = 0x04;
+	cpu.Flag.C = false;
+
+	mem[0xFFFC] = ADC_ABSY;
+	mem[0xFFFD] = 0x80;
+	mem[0xFFFE] = 0x44;
+
+	mem[0x4484] = -1;
+
+
+	CPU CPUCopy = cpu;
+	const int _cycle = 4;
+	int usedcycle = RunMachine(_cycle);
+
+	EXPECT_EQ(usedcycle, _cycle);
+	EXPECT_EQ(cpu.A, 127);
+
+	EXPECT_TRUE(cpu.Flag.C);
+	EXPECT_FALSE(cpu.Flag.Z);
+	EXPECT_FALSE(cpu.Flag.N);
+	EXPECT_TRUE(cpu.Flag.V);
+}
+
+
+TEST(TEST_ARITHMETIC, INST_ADC_INDX)
+{
+	cpu.Reset();
+
+	cpu.A = -128;
+	cpu.X = 4;
+	cpu.Flag.C = false;
+
+	mem[0xFFFC] = ADC_INDX;
+	mem[0xFFFD] = 0x02;
+
+	mem[0x0006] = 0x00;	// 0x02 + 0x04
+	mem[0x0007] = 0x80;
+
+	mem[0x8000] = -1;
+
+
+	CPU CPUCopy = cpu;
+	const int _cycle = 6;
+	int usedcycle = RunMachine(_cycle);
+
+	EXPECT_EQ(usedcycle, _cycle);
+	EXPECT_EQ(cpu.A, 127);
+
+	EXPECT_TRUE(cpu.Flag.C);
+	EXPECT_FALSE(cpu.Flag.Z);
+	EXPECT_FALSE(cpu.Flag.N);
+	EXPECT_TRUE(cpu.Flag.V);
+}
+
+TEST(TEST_ARITHMETIC, INST_ADC_INDY)
+{
+	cpu.Reset();
+
+	cpu.A = -128;
+	cpu.Y = 0xF4;
+	cpu.Flag.C = false;
+
+	mem[0xFFFC] = ADC_INDY;
+	mem[0xFFFD] = 0x02;
+
+	mem[0x0002] = 0xF0;	
+	mem[0x0003] = 0x80;
+
+	mem[0x80F0 + cpu.Y] = -1;	// 0x8000 + Y reg
+
+	CPU CPUCopy = cpu;
+	const int _cycle = 6;
+	int usedcycle = RunMachine(_cycle);
+
+	EXPECT_EQ(usedcycle, _cycle);
+	EXPECT_EQ(cpu.A, 127);
+
+	EXPECT_TRUE(cpu.Flag.C);
+	EXPECT_FALSE(cpu.Flag.Z);
+	EXPECT_FALSE(cpu.Flag.N);
+	EXPECT_TRUE(cpu.Flag.V);
+}
+
+//////////////////////////////////////////////////////////////////////////
+/*
+
+TEST(TEST_ARITHMETIC, INST_SBC_IM)
+{
+	cpu.Reset();
+
+	cpu.A = 0b10110001;		// B1
+	cpu.Flag.C = false;
+	cpu.Flag.Z = cpu.Flag.N = true;
+
+	mem[0xFFFC] = SBC_IM;
+	mem[0xFFFD] = 0b01111001;	// 79
+
+	CPU CPUCopy = cpu;
+	const int _cycle = 2;
+	int usedcycle = RunMachine(_cycle);
+
+	EXPECT_EQ(usedcycle, _cycle);
+	EXPECT_EQ(cpu.A, 0x2A);	// 12A
+
+	EXPECT_FALSE(cpu.Flag.Z);
+	EXPECT_FALSE(cpu.Flag.N);
+	EXPECT_TRUE(cpu.Flag.C);
+	EXPECT_TRUE(cpu.Flag.V);
+}
+*/
+
+
+
 #define SBC_ZP		0xE5
 #define SBC_ZPX		0xF5
 #define SBC_ABS		0xED
@@ -37,19 +258,360 @@ TEST(TEST_ARITHMETIC, INST_ADC_IM)
 #define SBC_INDX	0xE1
 #define SBC_INDY	0xF1
 
-#define CMP_IM		0xC9
-#define CMP_ZP		0xC5
-#define CMP_ZPX		0xD5
-#define CMP_ABS		0xCD
-#define CMP_ABSX	0xDD
-#define CMP_ABSY	0xD9
-#define CMP_INDX	0xC1
-#define CMP_INDY	0xD1
+//////////////////////////////////////////////////////////////////////////
 
-#define CPX_IM		0xE0
-#define CPX_ZP		0xE4
-#define CPX_ABS		0xEC
+TEST(TEST_ARITHMETIC, INST_CMP_IM)
+{
+	cpu.Reset();
 
-#define CPY_IM		0XC0
-#define CPY_ZP		0XC4
-#define CPY_ABS		0XCC
+	cpu.A = 26;
+	cpu.Flag.C = false;
+	cpu.Flag.Z = false;
+	cpu.Flag.N = true;
+
+	mem[0xFFFC] = CMP_IM;
+	mem[0xFFFD] = 26;
+
+	const int _cycle = 2;
+	int usedcycle = RunMachine(_cycle);
+
+	EXPECT_EQ(usedcycle, _cycle);
+
+	EXPECT_TRUE(cpu.Flag.Z);
+	EXPECT_FALSE(cpu.Flag.N);
+	EXPECT_TRUE(cpu.Flag.C);
+	//EXPECT_TRUE(cpu.Flag.V);
+}
+
+
+TEST(TEST_ARITHMETIC, INST_CMP_ZP)
+{
+	cpu.Reset();
+
+	cpu.A = 26;
+	cpu.Flag.C = false;
+	cpu.Flag.Z = false;
+	cpu.Flag.N = true;
+
+	mem[0xFFFC] = CMP_ZP;
+	mem[0xFFFD] = 0x10;
+	mem[0x0010] = 26;
+
+
+	const int _cycle = 3;
+	int usedcycle = RunMachine(_cycle);
+
+	EXPECT_EQ(usedcycle, _cycle);
+
+	EXPECT_TRUE(cpu.Flag.Z);
+	EXPECT_FALSE(cpu.Flag.N);
+	EXPECT_TRUE(cpu.Flag.C);
+}
+
+TEST(TEST_ARITHMETIC, INST_CMP_ZPX)
+{
+	cpu.Reset();
+
+	cpu.A = 26;
+	cpu.X = 0x04;
+
+	cpu.Flag.C = false;
+	cpu.Flag.Z = false;
+	cpu.Flag.N = true;
+
+	mem[0xFFFC] = CMP_ZPX;
+	mem[0xFFFD] = 0x10;
+	mem[0x0014] = 26;
+
+	const int _cycle = 4;
+	int usedcycle = RunMachine(_cycle);
+
+	EXPECT_EQ(usedcycle, _cycle);
+
+	EXPECT_TRUE(cpu.Flag.Z);
+	EXPECT_FALSE(cpu.Flag.N);
+	EXPECT_TRUE(cpu.Flag.C);
+}
+
+TEST(TEST_ARITHMETIC, INST_CMP_ABS)
+{
+	cpu.Reset();
+
+	cpu.A = 26;
+	cpu.Flag.C = false;
+	cpu.Flag.Z = false;
+	cpu.Flag.N = true;
+
+
+	mem[0xFFFC] = CMP_ABS;
+	mem[0xFFFD] = 0x00;
+	mem[0xFFFE] = 0x80;
+
+	mem[0x8000] = 26;
+
+	const int _cycle = 4;
+	int usedcycle = RunMachine(_cycle);
+
+	EXPECT_EQ(usedcycle, _cycle);
+	EXPECT_TRUE(cpu.Flag.Z);
+	EXPECT_FALSE(cpu.Flag.N);
+	EXPECT_TRUE(cpu.Flag.C);
+}
+
+TEST(TEST_ARITHMETIC, INST_CMP_ABSX)
+{
+	cpu.Reset();
+
+	cpu.A = 26;
+	cpu.X = 0x04;
+	cpu.Flag.C = false;
+	cpu.Flag.Z = false;
+	cpu.Flag.N = true;
+
+
+	mem[0xFFFC] = CMP_ABSX;
+	mem[0xFFFD] = 0x80;
+	mem[0xFFFE] = 0x44;
+
+	mem[0x4484] = 26;
+
+	const int _cycle = 4;
+	int usedcycle = RunMachine(_cycle);
+
+	EXPECT_EQ(usedcycle, _cycle);
+	EXPECT_TRUE(cpu.Flag.Z);
+	EXPECT_FALSE(cpu.Flag.N);
+	EXPECT_TRUE(cpu.Flag.C);
+}
+
+TEST(TEST_ARITHMETIC, INST_CMP_ABSY)
+{
+	cpu.Reset();
+
+	cpu.A = 26;
+	cpu.Y = 0x04;
+	cpu.Flag.C = false;
+	cpu.Flag.Z = false;
+	cpu.Flag.N = true;
+
+
+	mem[0xFFFC] = CMP_ABSY;
+	mem[0xFFFD] = 0x80;
+	mem[0xFFFE] = 0x44;
+
+	mem[0x4484] = 26;
+
+	const int _cycle = 4;
+	int usedcycle = RunMachine(_cycle);
+
+	EXPECT_EQ(usedcycle, _cycle);
+	EXPECT_TRUE(cpu.Flag.Z);
+	EXPECT_FALSE(cpu.Flag.N);
+	EXPECT_TRUE(cpu.Flag.C);
+}
+
+TEST(TEST_ARITHMETIC, INST_CMP_INDX)
+{
+	cpu.Reset();
+
+	cpu.A = 26;
+	cpu.X = 4;
+	cpu.Flag.C = false;
+	cpu.Flag.Z = false;
+	cpu.Flag.N = true;
+
+	mem[0xFFFC] = CMP_INDX;
+	mem[0xFFFD] = 0x02;
+
+	mem[0x0006] = 0x00;	// 0x02 + 0x04
+	mem[0x0007] = 0x80;
+
+	mem[0x8000] = 26;
+
+	const int _cycle = 6;
+	int usedcycle = RunMachine(_cycle);
+
+	EXPECT_EQ(usedcycle, _cycle);
+	EXPECT_TRUE(cpu.Flag.Z);
+	EXPECT_FALSE(cpu.Flag.N);
+	EXPECT_TRUE(cpu.Flag.C);
+}
+
+
+TEST(TEST_ARITHMETIC, INST_CMP_INDY)
+{
+	cpu.Reset();
+
+	cpu.A = 28;
+	cpu.Y = 0xF4;
+	cpu.Flag.C = false;
+	cpu.Flag.Z = false;
+	cpu.Flag.N = true;
+
+	mem[0xFFFC] = CMP_INDY;
+	mem[0xFFFD] = 0x02;
+
+	mem[0x0002] = 0xF0;
+	mem[0x0003] = 0x80;
+
+	mem[0x80F0 + cpu.Y] = 28;
+
+	CPU CPUCopy = cpu;
+	const int _cycle = 6;
+	int usedcycle = RunMachine(_cycle);
+
+	EXPECT_EQ(usedcycle, _cycle);
+	EXPECT_TRUE(cpu.Flag.Z);
+	EXPECT_FALSE(cpu.Flag.N);
+	EXPECT_TRUE(cpu.Flag.C);
+}
+
+
+//////////////////////////////////////////////////////////////////////////
+
+TEST(TEST_ARITHMETIC, INST_CPX_IM)
+{
+	cpu.Reset();
+
+	cpu.X = 26;
+	cpu.Flag.C = false;
+	cpu.Flag.Z = false;
+	cpu.Flag.N = true;
+
+	mem[0xFFFC] = CPX_IM;
+	mem[0xFFFD] = 26;
+
+	const int _cycle = 2;
+	int usedcycle = RunMachine(_cycle);
+
+	EXPECT_EQ(usedcycle, _cycle);
+
+	EXPECT_TRUE(cpu.Flag.Z);
+	EXPECT_FALSE(cpu.Flag.N);
+	EXPECT_TRUE(cpu.Flag.C);
+}
+
+TEST(TEST_ARITHMETIC, INST_CPX_ZP)
+{
+	cpu.Reset();
+
+	cpu.X = 26;
+	cpu.Flag.C = false;
+	cpu.Flag.Z = false;
+	cpu.Flag.N = true;
+
+	mem[0xFFFC] = CPX_ZP;
+	mem[0xFFFD] = 0x10;
+	mem[0x0010] = 26;
+
+
+	const int _cycle = 3;
+	int usedcycle = RunMachine(_cycle);
+
+	EXPECT_EQ(usedcycle, _cycle);
+
+	EXPECT_TRUE(cpu.Flag.Z);
+	EXPECT_FALSE(cpu.Flag.N);
+	EXPECT_TRUE(cpu.Flag.C);
+}
+
+TEST(TEST_ARITHMETIC, INST_CPX_ABS)
+{
+	cpu.Reset();
+
+	cpu.X = 26;
+	cpu.Flag.C = false;
+	cpu.Flag.Z = false;
+	cpu.Flag.N = true;
+
+
+	mem[0xFFFC] = CPX_ABS;
+	mem[0xFFFD] = 0x00;
+	mem[0xFFFE] = 0x80;
+
+	mem[0x8000] = 26;
+
+	const int _cycle = 4;
+	int usedcycle = RunMachine(_cycle);
+
+	EXPECT_EQ(usedcycle, _cycle);
+	EXPECT_TRUE(cpu.Flag.Z);
+	EXPECT_FALSE(cpu.Flag.N);
+	EXPECT_TRUE(cpu.Flag.C);
+}
+
+
+
+//////////////////////////////////////////////////////////////////////////
+
+TEST(TEST_ARITHMETIC, INST_CPY_IM)
+{
+	cpu.Reset();
+
+	cpu.Y = 26;
+	cpu.Flag.C = false;
+	cpu.Flag.Z = false;
+	cpu.Flag.N = true;
+
+	mem[0xFFFC] = CPY_IM;
+	mem[0xFFFD] = 26;
+
+	const int _cycle = 2;
+	int usedcycle = RunMachine(_cycle);
+
+	EXPECT_EQ(usedcycle, _cycle);
+
+	EXPECT_TRUE(cpu.Flag.Z);
+	EXPECT_FALSE(cpu.Flag.N);
+	EXPECT_TRUE(cpu.Flag.C);
+}
+
+TEST(TEST_ARITHMETIC, INST_CPY_ZP)
+{
+	cpu.Reset();
+
+	cpu.Y = 26;
+	cpu.Flag.C = false;
+	cpu.Flag.Z = false;
+	cpu.Flag.N = true;
+
+	mem[0xFFFC] = CPY_ZP;
+	mem[0xFFFD] = 0x10;
+	mem[0x0010] = 26;
+
+
+	const int _cycle = 3;
+	int usedcycle = RunMachine(_cycle);
+
+	EXPECT_EQ(usedcycle, _cycle);
+
+	EXPECT_TRUE(cpu.Flag.Z);
+	EXPECT_FALSE(cpu.Flag.N);
+	EXPECT_TRUE(cpu.Flag.C);
+}
+
+TEST(TEST_ARITHMETIC, INST_CPY_ABS)
+{
+	cpu.Reset();
+
+	cpu.Y = 26;
+	cpu.Flag.C = false;
+	cpu.Flag.Z = false;
+	cpu.Flag.N = true;
+
+
+	mem[0xFFFC] = CPY_ABS;
+	mem[0xFFFD] = 0x00;
+	mem[0xFFFE] = 0x80;
+
+	mem[0x8000] = 26;
+
+	const int _cycle = 4;
+	int usedcycle = RunMachine(_cycle);
+
+	EXPECT_EQ(usedcycle, _cycle);
+	EXPECT_TRUE(cpu.Flag.Z);
+	EXPECT_FALSE(cpu.Flag.N);
+	EXPECT_TRUE(cpu.Flag.C);
+}
+

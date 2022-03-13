@@ -5,6 +5,7 @@
 #include "6502CPU.h"
 #include "6502Memory.h"
 
+
 CPU::CPU()
 {
 	Reset();
@@ -75,16 +76,29 @@ bool CPU::GetFlag(BYTE flag)
 	return PS & flag;
 }
 
-
 void CPU::SetZeroNegative(BYTE Register)
 {
-	// A가 0 이면 Zero flag
-	//SetFlag(ZERO_FLAG, A == 0);
+	//SetFlag(FLAG_ZERO, Register == 0);
 	Flag.Z = (Register == 0);
 
-	// A가 Negative Flag 면 Negative flag Set
-	//SetFlag(NEGATIVE, A & NEGATIVE);
+	//SetFlag(FLAG_NEGATIVE, Register & FLAG_NEGATIVE);
 	Flag.N = (Register & FLAG_NEGATIVE) > 0;
+}
+
+void CPU::SetCarryFlag(WORD value)
+{
+	Flag.C = (value & 0xFF00) > 0;
+	//SetFlag(FLAG_CARRY, (value & 0xFF00) > 0);
+}
+
+void CPU::SetOverflow(BYTE oldv0, BYTE v0, BYTE v1)
+{
+	bool sign0 = ((oldv0 ^ v1) & FLAG_NEGATIVE);	// 계산전 부호
+	bool sign1 = ((v0 ^ v1) & FLAG_NEGATIVE);		// 계산후 부호
+
+	// Overflow는 같은 부호를 더했는데 다른 부호가 나오면 Overflow이다
+	//SetFlag(FLAG_OVERFLOW, (sign0 != sign1));
+	Flag.V = (sign0 != sign1);
 }
 
 BYTE CPU::Fetch(Memory& mem, int &cycle)
@@ -274,10 +288,7 @@ int CPU::Run(Memory &mem, int &cycle)
 
 			case LDA_INDX:	// 6 cycle
 			{
-				BYTE t = Fetch(mem, cycle);
-				WORD inx = t + X;
-				cycle--;
-				WORD addr = ReadWord(mem, inx, cycle);
+				WORD addr = addr_mode_INDX(mem, cycle);
 				A = ReadByte(mem, addr, cycle);
 
 				SetZeroNegative(A);
@@ -286,17 +297,8 @@ int CPU::Run(Memory &mem, int &cycle)
 
 			case LDA_INDY: // 5 ~ 6 cycle
 			{
-				// zero page에서 word 읽고 Y레지스터와 더한 주소의 1바이트를 A에 로드
-				// 읽을 주소가 page를 넘으면 1사이클 감소
-				BYTE addr = Fetch(mem, cycle);
-				BYTE lo = ReadByte(mem, addr, cycle);
-				BYTE hi = ReadByte(mem, addr+1, cycle);
-
-				WORD t = lo + Y;
-				if (t > 0xFF) cycle--;	// page 넘어감
-
-				WORD index_addr = (lo | (hi << 8)) + Y;
-				A = ReadByte(mem, index_addr, cycle);
+				WORD addr = addr_mode_INDY(mem, cycle);
+				A = ReadByte(mem, addr, cycle);
 
 				SetZeroNegative(A);
 			}
@@ -437,11 +439,7 @@ int CPU::Run(Memory &mem, int &cycle)
 
 			case STA_INDX:	// 6 cycle
 			{
-				// ZeroPage + X 가 가르키는곳에 A레지스터 내용쓰기 
-				BYTE zp = Fetch(mem, cycle);
-				zp += X;
-				cycle--;
-				WORD addr = ReadWord(mem, zp, cycle);
+				WORD addr = addr_mode_INDX(mem, cycle);
 				WriteByte(mem, A, addr, cycle);
 			}
 			break;
@@ -667,10 +665,7 @@ int CPU::Run(Memory &mem, int &cycle)
 
 			case AND_INDX:	// 6 cycle
 			{
-				BYTE t = Fetch(mem, cycle);
-				WORD inx = t + X;
-				cycle--;
-				WORD addr = ReadWord(mem, inx, cycle);
+				WORD addr = addr_mode_INDX(mem, cycle);
 				A &= ReadByte(mem, addr, cycle);
 
 				SetZeroNegative(A);
@@ -679,15 +674,8 @@ int CPU::Run(Memory &mem, int &cycle)
 
 			case AND_INDY:	// 5 cycle / 페이지 넘어가면 1 cycle 추가
 			{
-				BYTE addr = Fetch(mem, cycle);
-				BYTE lo = ReadByte(mem, addr, cycle);
-				BYTE hi = ReadByte(mem, addr + 1, cycle);
-
-				WORD t = lo + Y;
-				if (t > 0xFF) cycle--;	// page 넘어감
-
-				WORD index_addr = (lo | (hi << 8)) + Y;
-				A &= ReadByte(mem, index_addr, cycle);
+				WORD addr = addr_mode_INDY(mem, cycle);
+				A &= ReadByte(mem, addr, cycle);
 
 				SetZeroNegative(A);
 			}
@@ -743,10 +731,7 @@ int CPU::Run(Memory &mem, int &cycle)
 
 			case ORA_INDX:
 			{
-				BYTE t = Fetch(mem, cycle);
-				WORD inx = t + X;
-				cycle--;
-				WORD addr = ReadWord(mem, inx, cycle);
+				WORD addr = addr_mode_INDX(mem, cycle);
 				A |= ReadByte(mem, addr, cycle);
 
 				SetZeroNegative(A);
@@ -755,15 +740,8 @@ int CPU::Run(Memory &mem, int &cycle)
 
 			case ORA_INDY:
 			{
-				BYTE addr = Fetch(mem, cycle);
-				BYTE lo = ReadByte(mem, addr, cycle);
-				BYTE hi = ReadByte(mem, addr + 1, cycle);
-
-				WORD t = lo + Y;
-				if (t > 0xFF) cycle--;	// page 넘어감
-
-				WORD index_addr = (lo | (hi << 8)) + Y;
-				A |= ReadByte(mem, index_addr, cycle);
+				WORD addr = addr_mode_INDY(mem, cycle);
+				A |= ReadByte(mem, addr, cycle);
 
 				SetZeroNegative(A);
 			}
@@ -819,10 +797,7 @@ int CPU::Run(Memory &mem, int &cycle)
 
 			case EOR_INDX:
 			{
-				BYTE t = Fetch(mem, cycle);
-				WORD inx = t + X;
-				cycle--;
-				WORD addr = ReadWord(mem, inx, cycle);
+				WORD addr = addr_mode_INDX(mem, cycle);
 				A ^= ReadByte(mem, addr, cycle);
 
 				SetZeroNegative(A);
@@ -831,15 +806,8 @@ int CPU::Run(Memory &mem, int &cycle)
 
 			case EOR_INDY:
 			{
-				BYTE addr = Fetch(mem, cycle);
-				BYTE lo = ReadByte(mem, addr, cycle);
-				BYTE hi = ReadByte(mem, addr + 1, cycle);
-
-				WORD t = lo + Y;
-				if (t > 0xFF) cycle--;	// page 넘어감
-
-				WORD index_addr = (lo | (hi << 8)) + Y;
-				A ^= ReadByte(mem, index_addr, cycle);
+				WORD addr = addr_mode_INDY(mem, cycle);
+				A ^= ReadByte(mem, addr, cycle);
 
 				SetZeroNegative(A);
 			}
@@ -1054,55 +1022,232 @@ int CPU::Run(Memory &mem, int &cycle)
 			{
 				// A + M + C -> A, C
 				BYTE v = Fetch(mem, cycle);
-				A = A + v + Flag.C;
-
-
+				Execute_ADC(v);
 			}
 			break;
 
 			case ADC_ZP:	// 3 cycle
 			{
-
+				WORD addr = addr_mode_ZP(mem, cycle);
+				BYTE v = ReadByte(mem, addr, cycle);
+				Execute_ADC(v);
 			}
 			break;
 
 			case ADC_ZPX:	// 4 cycle
 			{
-
+				WORD addr = addr_mode_ZPX(mem, cycle);
+				BYTE v = ReadByte(mem, addr, cycle);
+				Execute_ADC(v);
 			}
 			break;
 
 			case ADC_ABS:	// 4 cycle
 			{
-
+				WORD addr = addr_mode_ABS(mem, cycle);
+				BYTE v = ReadByte(mem, addr, cycle);
+				Execute_ADC(v);
 			}
 			break;
 
-			case ADC_ABSX:
+			case ADC_ABSX:	// 4~5 cycle
 			{
-
+				WORD addr = addr_mode_ABSX(mem, cycle);
+				BYTE v = ReadByte(mem, addr, cycle);
+				Execute_ADC(v);
 			}
 			break;
 
-			case ADC_ABSY:
+			case ADC_ABSY:	// 4~5 cycle
 			{
-
+				WORD addr = addr_mode_ABSY(mem, cycle);
+				BYTE v = ReadByte(mem, addr, cycle);
+				Execute_ADC(v);
 			}
 			break;
 
-			case ADC_INDX:
+			case ADC_INDX:	// 6 cycle
 			{
-
+				WORD addr = addr_mode_INDX(mem, cycle);
+				BYTE v = ReadByte(mem, addr, cycle);
+				Execute_ADC(v);
 			}
 			break;
 
-			case ADC_INDY:
+			case ADC_INDY:	// 5~6 cycle
 			{
+				WORD addr = addr_mode_INDY(mem, cycle);
+				BYTE v = ReadByte(mem, addr, cycle);
+				Execute_ADC(v);
+			}
+			break;
+
+			//////////////////////////////////////////////////////////////////////////////
+
+			// SBC - Subtract with Carry
+			// A, Z, C, N = A - M - (1 - C)
+			case SBC_IM	:
+			{
+				BYTE v = Fetch(mem, cycle);
 
 			}
 			break;
 
+			case SBC_ZP:
+			{
+			}
+			break;
 
+			case SBC_ZPX:
+			{
+			}
+			break;
+
+			case SBC_ABS:
+			{
+			}
+			break;
+
+			case SBC_ABSX:
+			{
+			}
+			break;
+
+			case SBC_ABSY:
+			{
+			}
+			break;
+
+			case SBC_INDX:
+			{
+			}
+			break;
+
+			case SBC_INDY:
+			{
+			}
+			break;
+
+			////////////////////////////////////////////////////////////////////////////// Compare
+
+			// Z,C,N = A-M
+			// This instruction compares the contents of the accumulator with another memory held 
+			// valueand sets the zeroand carry flags as appropriate.
+			case CMP_IM:
+			{
+				BYTE v = Fetch(mem, cycle);
+				Execute_CMP(v);
+			}
+			break;
+
+			case CMP_ZP:
+			{
+				WORD addr = addr_mode_ZP(mem, cycle);
+				BYTE v = ReadByte(mem, addr, cycle);
+				Execute_CMP(v);
+			}
+			break;
+			
+			case CMP_ZPX:
+			{
+				WORD addr = addr_mode_ZPX(mem, cycle);
+				BYTE v = ReadByte(mem, addr, cycle);
+				Execute_CMP(v);
+			}
+			break;
+
+			case CMP_ABS:
+			{
+				WORD addr = addr_mode_ABS(mem, cycle);
+				BYTE v = ReadByte(mem, addr, cycle);
+				Execute_CMP(v);
+			}
+			break;
+
+			case CMP_ABSX:
+			{
+				WORD addr = addr_mode_ABSX(mem, cycle);
+				BYTE v = ReadByte(mem, addr, cycle);
+				Execute_CMP(v);
+			}
+			break;
+
+			case CMP_ABSY:
+			{
+				WORD addr = addr_mode_ABSY(mem, cycle);
+				BYTE v = ReadByte(mem, addr, cycle);
+				Execute_CMP(v);
+			}
+			break;
+
+			case CMP_INDX:
+			{
+				WORD addr = addr_mode_INDX(mem, cycle);
+				BYTE v = ReadByte(mem, addr, cycle);
+				Execute_CMP(v);
+			}
+
+			break;
+
+			case CMP_INDY:
+			{
+				WORD addr = addr_mode_INDY(mem, cycle);
+				BYTE v = ReadByte(mem, addr, cycle);
+				Execute_CMP(v);
+			}
+			break;
+
+			//////////////////////////////////////////////////////////////////////////////
+
+			// Compare X Register
+			// Z, C, N = X - M
+			// This instruction compares the contents of the X register with another memory
+			// held value and sets the zero and carry flags as appropriate.
+			case CPX_IM	:
+			{
+				BYTE v = Fetch(mem, cycle);
+				Execute_CPX(v);
+			}
+			break;
+
+			case CPX_ZP:
+			{
+				WORD addr = addr_mode_ZP(mem, cycle);
+				BYTE v = ReadByte(mem, addr, cycle);
+				Execute_CPX(v);
+			}
+			break;
+
+			case CPX_ABS:
+			{
+				WORD addr = addr_mode_ABS(mem, cycle);
+				BYTE v = ReadByte(mem, addr, cycle);
+				Execute_CPX(v);
+			}
+			break;
+
+			case CPY_IM:
+			{
+				BYTE v = Fetch(mem, cycle);
+				Execute_CPY(v);
+			}
+			break;
+
+			case CPY_ZP:
+			{
+				WORD addr = addr_mode_ZP(mem, cycle);
+				BYTE v = ReadByte(mem, addr, cycle);
+				Execute_CPY(v);
+			}
+			break;
+
+			case CPY_ABS:
+			{
+				WORD addr = addr_mode_ABS(mem, cycle);
+				BYTE v = ReadByte(mem, addr, cycle);
+				Execute_CPY(v);
+			}
+			break;
 
 			//////////////////////////////////////////////////////////////////////////////
 
@@ -1205,4 +1350,76 @@ WORD CPU::addr_mode_ABSY_NoPage(Memory& mem, int& cycle)
 	address += Y;
 	cycle--;
 	return address;
+}
+
+WORD CPU::addr_mode_INDX(Memory& mem, int& cycle)
+{
+	BYTE t = Fetch(mem, cycle);
+	WORD inx = t + X;
+	cycle--;
+	WORD address = ReadWord(mem, inx, cycle);
+	return address;
+}
+
+
+WORD CPU::addr_mode_INDY(Memory& mem, int& cycle)
+{
+#if 1
+	// zero page에서 word 읽고 Y레지스터와 더한 주소의 1바이트를 A에 로드
+	// 읽을 주소가 page를 넘으면 1사이클 감소
+	BYTE addr = Fetch(mem, cycle);
+	BYTE lo = ReadByte(mem, addr, cycle);
+	BYTE hi = ReadByte(mem, addr + 1, cycle);
+
+	WORD t = lo + Y;
+	if (t > 0xFF) cycle--;	// page 넘어감
+
+	WORD index_addr = ((hi << 8) | lo) + Y;
+	return index_addr;
+#else
+	BYTE addr = Fetch(mem, cycle);
+	WORD EAddr = ReadWord(mem, addr, cycle);
+	WORD EAddrY = EAddr + Y;
+	const bool CrossedPageBoundary = (EAddr ^ EAddrY) >> 8;
+	if (CrossedPageBoundary)
+	{
+		cycle--;
+	}
+	return EAddrY;
+#endif
+}
+
+void CPU::Execute_ADC(BYTE v)
+{
+	BYTE oldA = A;
+	WORD Result = A + v + Flag.C;
+	A = (Result & 0xFF);
+
+	SetZeroNegative(A);
+	SetCarryFlag(Result);
+	SetOverflow(oldA, A, v);
+}
+
+void CPU::Execute_CMP(BYTE v)
+{
+	WORD t = A - v;
+	Flag.N = (t & FLAG_NEGATIVE) > 0;	// Set if bit 7 of the result is set
+	Flag.Z = A == v;					// Set if A = M
+	Flag.C = A >= v;					// Set if A >= M
+}
+
+void CPU::Execute_CPX(BYTE v)
+{
+	WORD t = X - v;
+	Flag.N = (t & FLAG_NEGATIVE) > 0;	// Set if bit 7 of the result is set
+	Flag.Z = X == v;					// Set if X = M
+	Flag.C = X >= v;					// Set if X >= M
+}
+
+void CPU::Execute_CPY(BYTE v)
+{
+	WORD t = Y - v;
+	Flag.N = (t & FLAG_NEGATIVE) > 0;	// Set if bit 7 of the result is set
+	Flag.Z = Y == v;					// Set if Y = M
+	Flag.C = Y >= v;					// Set if Y >= M
 }
