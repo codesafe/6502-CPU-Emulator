@@ -3,7 +3,7 @@
 TEST(TEST_INCREASE_DECREASE, INST_INX)
 {
 	cpu.Reset();
-	cpu.X = 0x88;
+	cpu.X = 0x53;
 	cpu.Flag.Z = cpu.Flag.N = true;
 
 	mem[0xFFFC] = INX;
@@ -13,7 +13,7 @@ TEST(TEST_INCREASE_DECREASE, INST_INX)
 	int usedcycle = RunMachine(_cycle);
 
 	EXPECT_EQ(usedcycle, _cycle);
-	EXPECT_EQ(cpu.X, 0x89);
+	EXPECT_EQ(cpu.X, 0x54);
 
 	EXPECT_FALSE(cpu.Flag.Z);
 	EXPECT_FALSE(cpu.Flag.N);
@@ -22,7 +22,7 @@ TEST(TEST_INCREASE_DECREASE, INST_INX)
 TEST(TEST_INCREASE_DECREASE, INST_INY)
 {
 	cpu.Reset();
-	cpu.Y = 0x88;
+	cpu.Y = 0x53;
 	cpu.Flag.Z = cpu.Flag.N = true;
 
 	mem[0xFFFC] = INY;
@@ -32,7 +32,7 @@ TEST(TEST_INCREASE_DECREASE, INST_INY)
 	int usedcycle = RunMachine(_cycle);
 
 	EXPECT_EQ(usedcycle, _cycle);
-	EXPECT_EQ(cpu.Y, 0x89);
+	EXPECT_EQ(cpu.Y, 0x54);
 
 	EXPECT_FALSE(cpu.Flag.Z);
 	EXPECT_FALSE(cpu.Flag.N);
@@ -41,7 +41,7 @@ TEST(TEST_INCREASE_DECREASE, INST_INY)
 TEST(TEST_INCREASE_DECREASE, INST_DEX)
 {
 	cpu.Reset();
-	cpu.X = 0x88;
+	cpu.X = 0x53;
 	cpu.Flag.Z = cpu.Flag.N = true;
 
 	mem[0xFFFC] = DEX;
@@ -51,7 +51,7 @@ TEST(TEST_INCREASE_DECREASE, INST_DEX)
 	int usedcycle = RunMachine(_cycle);
 
 	EXPECT_EQ(usedcycle, _cycle);
-	EXPECT_EQ(cpu.X, 0x87);
+	EXPECT_EQ(cpu.X, 0x52);
 
 	EXPECT_FALSE(cpu.Flag.Z);
 	EXPECT_FALSE(cpu.Flag.N);
@@ -60,7 +60,7 @@ TEST(TEST_INCREASE_DECREASE, INST_DEX)
 TEST(TEST_INCREASE_DECREASE, INST_DEY)
 {
 	cpu.Reset();
-	cpu.Y = 0x88;
+	cpu.Y = 0x53;
 	cpu.Flag.Z = cpu.Flag.N = true;
 
 	mem[0xFFFC] = DEY;
@@ -70,7 +70,7 @@ TEST(TEST_INCREASE_DECREASE, INST_DEY)
 	int usedcycle = RunMachine(_cycle);
 
 	EXPECT_EQ(usedcycle, _cycle);
-	EXPECT_EQ(cpu.Y, 0x87);
+	EXPECT_EQ(cpu.Y, 0x52);
 
 	EXPECT_FALSE(cpu.Flag.Z);
 	EXPECT_FALSE(cpu.Flag.N);
@@ -135,14 +135,14 @@ TEST(TEST_INCREASE_DECREASE, INST_DEC_ABS)
 	mem[0xFFFD] = 0x00;
 	mem[0xFFFE] = 0x80;
 	
-	mem[0x8000] = 0x88;
+	mem[0x8000] = 0x48;
 
 	CPU CPUCopy = cpu;
 	const int _cycle = 6;
 	int usedcycle = RunMachine(_cycle);
 
 	EXPECT_EQ(usedcycle, _cycle);
-	EXPECT_EQ(mem[0x8000], 0x87);
+	EXPECT_EQ(mem[0x8000], 0x47);
 
 	EXPECT_FALSE(cpu.Flag.Z);
 	EXPECT_FALSE(cpu.Flag.N);
@@ -160,14 +160,14 @@ TEST(TEST_INCREASE_DECREASE, INST_DEC_ABSX)
 	mem[0xFFFD] = 0x00;
 	mem[0xFFFE] = 0x80;
 	
-	mem[0x8010] = 0x88;
+	mem[0x8010] = 0x48;
 
 	CPU CPUCopy = cpu;
 	const int _cycle = 7;
 	int usedcycle = RunMachine(_cycle);
 
 	EXPECT_EQ(usedcycle, _cycle);
-	EXPECT_EQ(mem[0x8010], 0x87);
+	EXPECT_EQ(mem[0x8010], 0x47);
 
 	EXPECT_FALSE(cpu.Flag.Z);
 	EXPECT_FALSE(cpu.Flag.N);
@@ -232,14 +232,14 @@ TEST(TEST_INCREASE_DECREASE, INST_INC_ABS)
 	mem[0xFFFD] = 0x00;
 	mem[0xFFFE] = 0x80;
 	
-	mem[0x8000] = 0x88;
+	mem[0x8000] = 0x68;
 
 	CPU CPUCopy = cpu;
 	const int _cycle = 6;
 	int usedcycle = RunMachine(_cycle);
 
 	EXPECT_EQ(usedcycle, _cycle);
-	EXPECT_EQ(mem[0x8000], 0x89);
+	EXPECT_EQ(mem[0x8000], 0x69);
 
 	EXPECT_FALSE(cpu.Flag.Z);
 	EXPECT_FALSE(cpu.Flag.N);
@@ -257,14 +257,14 @@ TEST(TEST_INCREASE_DECREASE, INST_INC_ABSX)
 	mem[0xFFFD] = 0x00;
 	mem[0xFFFE] = 0x80;
 	
-	mem[0x8010] = 0x88;
+	mem[0x8010] = 0x68;
 
 	CPU CPUCopy = cpu;
 	const int _cycle = 7;
 	int usedcycle = RunMachine(_cycle);
 
 	EXPECT_EQ(usedcycle, _cycle);
-	EXPECT_EQ(mem[0x8010], 0x89);
+	EXPECT_EQ(mem[0x8010], 0x69);
 
 	EXPECT_FALSE(cpu.Flag.Z);
 	EXPECT_FALSE(cpu.Flag.N);

@@ -52,11 +52,11 @@ BYTE N : 1; //7: Negative
 	(LDA) (LDX) (LDY)
 	(TXS) (TSX) (PHA) (PHP) (PLA) (PLP) 
 	(STA) (STX) (STY)
-	ADC  ASL BCC BCS BEQ BMI BNE BPL BRK BVC BVS CLC CLD CLI CLV CMP
-	CPX CPY 
-	DEC DEX DEY INC INX INY 
+	ADC  SBC CMP CPX CPY 
+	ASL BCC BCS BEQ BMI BNE BPL BRK BVC BVS CLC CLD CLI CLV 
+	(DEC) (DEX) (DEY) (INC) (INX) (INY) 
 	LSR 
-	ROL ROR RTI  SBC SEC SED SEI  
+	ROL ROR RTI  SEC SED SEI  
 	(TAX) (TAY)  (TXA) (TYA)
 */
 
@@ -176,6 +176,41 @@ BYTE N : 1; //7: Negative
 #define DEC_ABS		0xCE
 #define DEC_ABSX	0xDE
 
+// Arithmetic
+#define ADC_IM		0x69
+#define ADC_ZP		0x65
+#define ADC_ZPX		0x75
+#define ADC_ABS		0x6D
+#define ADC_ABSX	0x7D
+#define ADC_ABSY	0x79
+#define ADC_INDX	0x61
+#define ADC_INDY	0x71
+
+#define SBC_IM		0xE9
+#define SBC_ZP		0xE5
+#define SBC_ZPX		0xF5
+#define SBC_ABS		0xED
+#define SBC_ABSX	0xFD
+#define SBC_ABSY	0xF9
+#define SBC_INDX	0xE1
+#define SBC_INDY	0xF1
+
+#define CMP_IM		0xC9
+#define CMP_ZP		0xC5
+#define CMP_ZPX		0xD5
+#define CMP_ABS		0xCD
+#define CMP_ABSX	0xDD
+#define CMP_ABSY	0xD9
+#define CMP_INDX	0xC1
+#define CMP_INDY	0xD1
+
+#define CPX_IM		0xE0
+#define CPX_ZP		0xE4
+#define CPX_ABS		0xEC
+
+#define CPY_IM		0XC0
+#define CPY_ZP		0XC4
+#define CPY_ABS		0XCC
 
 
 struct StatusFlags
@@ -241,12 +276,19 @@ public:
 	WORD addr_mode_ZP(Memory& mem, int& cycle);
 	// Zero page + X
 	WORD addr_mode_ZPX(Memory& mem, int& cycle);
+	// Zero page + X
+	WORD addr_mode_ZPY(Memory& mem, int& cycle);
 	// ABS
 	WORD addr_mode_ABS(Memory& mem, int& cycle);
 	// ABS + X
 	WORD addr_mode_ABSX(Memory& mem, int& cycle);
+	// ABS + X : Page 넘어가는것 무시
+	WORD addr_mode_ABSX_NoPage(Memory& mem, int& cycle);
+
 	// ABS + Y
 	WORD addr_mode_ABSY(Memory& mem, int& cycle);
+	// ABS + Y : Page 넘어가는것 무시
+	WORD addr_mode_ABSY_NoPage(Memory& mem, int& cycle);
 
 	//////////////////////////////////////////////////////////////////////////
 

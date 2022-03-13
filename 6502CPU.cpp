@@ -219,7 +219,7 @@ int CPU::Run(Memory &mem, int &cycle)
 */
 				WORD addr = addr_mode_ZPX(mem, cycle);
 				// Zero page읽으면서 cycle 소모
-				A = ReadByte(mem, zpa, cycle);
+				A = ReadByte(mem, addr, cycle);
 
 				SetZeroNegative(A);
 			}
@@ -329,7 +329,7 @@ int CPU::Run(Memory &mem, int &cycle)
 				cycle--;
 */
 				WORD addr = addr_mode_ZPY(mem, cycle);
-				X = ReadByte(mem, zpage, cycle);
+				X = ReadByte(mem, addr, cycle);
 				SetZeroNegative(X);
 			}
 			break;
@@ -422,9 +422,7 @@ int CPU::Run(Memory &mem, int &cycle)
 			case STA_ABSX:	// 5 cycle
 			{
 				// WORD address + X에 A레지스터 내용 쓰기
-				WORD addr = FetchWord(mem, cycle);
-				addr += X;
-				cycle--;
+				WORD addr = addr_mode_ABSX_NoPage(mem, cycle);
 				WriteByte(mem, A, addr, cycle);
 			}
 			break;
@@ -432,7 +430,7 @@ int CPU::Run(Memory &mem, int &cycle)
 			case STA_ABSY:	// 5 cycle
 			{
 				// WORD address + Y에 A레지스터 내용 쓰기
-				WORD addr = addr_mode_ABSY(mem, cycle);
+				WORD addr = addr_mode_ABSY_NoPage(mem, cycle);
 				WriteByte(mem, A, addr, cycle);
 			}
 			break;
@@ -471,8 +469,8 @@ int CPU::Run(Memory &mem, int &cycle)
 
 			case STX_ZPY:	// 4 cycle
 			{
-				// ZP + X에 X레지스터 내용쓰기
-				WORD addr = addr_mode_ZPX(mem, cycle);
+				// ZP + Y에 X레지스터 내용쓰기
+				WORD addr = addr_mode_ZPY(mem, cycle);
 				WriteByte(mem, X, addr, cycle);
 			}
 			break;
@@ -995,7 +993,7 @@ int CPU::Run(Memory &mem, int &cycle)
 			break;
 			case INC_ABSX:
 			{
-				WORD addr = addr_mode_ABSX(mem, cycle);
+				WORD addr = addr_mode_ABSX_NoPage(mem, cycle);
 				BYTE v = ReadByte(mem, addr, cycle);
 				v++;
 				cycle--;
@@ -1003,19 +1001,19 @@ int CPU::Run(Memory &mem, int &cycle)
 				SetZeroNegative(v);				
 			}
 			break;
-			case DEC_ZP:
+			case DEC_ZP:// 5 cycle
 			{
 				// Decrement Memory by One / M - 1 -> M
 				WORD addr = addr_mode_ZP(mem, cycle);
 				BYTE v = ReadByte(mem, addr, cycle);
 				v--;
 				cycle--;
-				WriteByte(mem, v, zpage, cycle);
+				WriteByte(mem, v, addr, cycle);
 				SetZeroNegative(v);
 
 			}
 			break;
-			case DEC_ZPX:
+			case DEC_ZPX: // 6 cycle
 			{
 				WORD addr = addr_mode_ZPX(mem, cycle);
 				BYTE v = ReadByte(mem, addr, cycle);
@@ -1038,7 +1036,7 @@ int CPU::Run(Memory &mem, int &cycle)
 
 			case DEC_ABSX:	// 7 cycle
 			{
-				WORD addr = addr_mode_ABSX(mem, cycle);
+				WORD addr = addr_mode_ABSX_NoPage(mem, cycle);
 				BYTE v = ReadByte(mem, addr, cycle);
 				v--;
 				cycle--;
@@ -1046,6 +1044,65 @@ int CPU::Run(Memory &mem, int &cycle)
 				SetZeroNegative(v);
 			}
 			break;
+
+			//////////////////////////////////////////////////////////////////////////////	Arithmetic
+
+			// Add with Carry
+			// This instruction adds the contents of a memory location to the accumulator together with 
+			// the carry bit.If overflow occurs the carry bit is set, this enables multiple byte addition to be performed.
+			case ADC_IM	:	// 2 cycle
+			{
+				// A + M + C -> A, C
+				BYTE v = Fetch(mem, cycle);
+				A = A + v + Flag.C;
+
+
+			}
+			break;
+
+			case ADC_ZP:	// 3 cycle
+			{
+
+			}
+			break;
+
+			case ADC_ZPX:	// 4 cycle
+			{
+
+			}
+			break;
+
+			case ADC_ABS:	// 4 cycle
+			{
+
+			}
+			break;
+
+			case ADC_ABSX:
+			{
+
+			}
+			break;
+
+			case ADC_ABSY:
+			{
+
+			}
+			break;
+
+			case ADC_INDX:
+			{
+
+			}
+			break;
+
+			case ADC_INDY:
+			{
+
+			}
+			break;
+
+
 
 			//////////////////////////////////////////////////////////////////////////////
 
@@ -1056,7 +1113,7 @@ int CPU::Run(Memory &mem, int &cycle)
 			//////////////////////////////////////////////////////////////////////////////
 
 			default:
-				printf("Unknown instruction : %x", inst);
+				printf("Unknown instruction : %x\n", inst);
 				break;
 		}
 	}
@@ -1121,6 +1178,15 @@ WORD CPU::addr_mode_ABSX(Memory& mem, int& cycle)
 	return address;
 }
 
+// ABS + X : Page 넘어가는것 무시(그냥 하드웨어가 이렇게 생김)
+WORD CPU::addr_mode_ABSX_NoPage(Memory& mem, int& cycle)
+{
+	WORD address = FetchWord(mem, cycle);
+	address += X;
+	cycle--;
+	return address;
+}
+
 // ABS + Y
 WORD CPU::addr_mode_ABSY(Memory& mem, int& cycle)
 {
@@ -1129,6 +1195,14 @@ WORD CPU::addr_mode_ABSY(Memory& mem, int& cycle)
 
 	WORD t = lo + Y;
 	if (t > 0xFF) cycle--;
-	WORD addr = (lo | (hi << 8)) + Y;
+	WORD address = (lo | (hi << 8)) + Y;
+	return address;
+}
+
+WORD CPU::addr_mode_ABSY_NoPage(Memory& mem, int& cycle)
+{
+	WORD address = FetchWord(mem, cycle);
+	address += Y;
+	cycle--;
 	return address;
 }

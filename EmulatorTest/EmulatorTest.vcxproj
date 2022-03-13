@@ -41,6 +41,7 @@
   <ItemGroup>
     <ClCompile Include="..\6502CPU.cpp" />
     <ClCompile Include="..\6502Memory.cpp" />
+    <ClCompile Include="UnitTestArithmetic.cpp" />
     <ClCompile Include="UnitTestIncDec.cpp" />
     <ClCompile Include="UnitTestJump.cpp" />
     <ClCompile Include="UnitTestLoad.cpp" />
