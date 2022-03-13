@@ -1,6 +1,6 @@
 #include "UnitTestMain.h"
 
-TEST(TEST_INCREASE_DECREASE, INST_INX)
+TEST(TEST_ARITHMETIC, INST_ADC_IM)
 {
 	cpu.Reset();
 	cpu.X = 0x53;
