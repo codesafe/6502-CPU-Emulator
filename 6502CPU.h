@@ -53,12 +53,13 @@ BYTE N : 1; //7: Negative
 	(LDA) (LDX) (LDY)
 	(TXS) (TSX) (PHA) (PHP) (PLA) (PLP) 
 	(STA) (STX) (STY)
-	(ADC)  SBC (CMP) (CPX) (CPY)
-	ASL BCC BCS BEQ BMI BNE BPL BRK BVC BVS CLC CLD CLI CLV 
-	(DEC) (DEX) (DEY) (INC) (INX) (INY) 
-	LSR
-	ROL ROR RTI  SEC SED SEI  
+	(ADC) (SBC) (CMP) (CPX) (CPY)
+	(DEC) (DEX) (DEY) (INC) (INX) (INY)
 	(TAX) (TAY)  (TXA) (TYA)
+
+	ASL LSR ROL ROR 
+	BCC BCS BEQ BMI BNE BPL BRK BVC BVS CLC CLD CLI CLV 
+	RTI  SEC SED SEI  
 */
 
 // LDA (LoaD Accumulator)
@@ -214,6 +215,32 @@ BYTE N : 1; //7: Negative
 #define CPY_ABS		0XCC
 
 
+// Shifts
+#define ASL			0x0A
+#define ASL_ZP		0x06
+#define ASL_ZPX		0x16
+#define ASL_ABS		0x0E
+#define ASL_ABSX	0x1E
+
+#define LSR			0x4A
+#define LSR_ZP		0x46
+#define LSR_ZPX		0x56
+#define LSR_ABS		0x4E
+#define LSR_ABSX	0x5E
+
+#define ROL			0x2A
+#define ROL_ZP		0x26
+#define ROL_ZPX		0x36
+#define ROL_ABS		0x2E
+#define ROL_ABSX	0x3E
+
+#define ROR			0x6A
+#define ROR_ZP		0x66
+#define ROR_ZPX		0x76
+#define ROR_ABS		0x6E
+#define ROR_ABSX	0x7E
+
+
 struct StatusFlags
 {
 	BYTE C : 1;	//0: Carry Flag	
@@ -263,6 +290,7 @@ public:
 
 	void SetZeroNegative(BYTE Register);
 	void SetCarryFlag(WORD value);
+	void SetCarryFlagNegative(WORD value);
 	void SetOverflow(BYTE oldv0, BYTE v0, BYTE v1);
 
 	BYTE Fetch(Memory& mem, int& cycle);
@@ -316,10 +344,12 @@ public:
 	//////////////////////////////////////////////////////////////////////////	Arithmetic
 
 	void Execute_ADC(BYTE v);
+	void Execute_SBC(BYTE v);
 	void Execute_CMP(BYTE v);
 	void Execute_CPX(BYTE v);
 	void Execute_CPY(BYTE v);
-
+	void Execute_ASL(BYTE &v, int &cycle);
+	void Execute_LSR(BYTE& v, int& cycle);
 };
 
 #endif

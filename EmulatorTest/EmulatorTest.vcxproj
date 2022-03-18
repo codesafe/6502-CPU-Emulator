@@ -49,6 +49,7 @@
     <ClCompile Include="UnitTestMain.cpp" />
     <ClCompile Include="UnitTestRegisterTransfer.cpp" />
     <ClCompile Include="UnitTestSampleProgram.cpp" />
+    <ClCompile Include="UnitTestShift.cpp" />
     <ClCompile Include="UnitTestStackOperation.cpp" />
     <ClCompile Include="UnitTestStore.cpp" />
   </ItemGroup>

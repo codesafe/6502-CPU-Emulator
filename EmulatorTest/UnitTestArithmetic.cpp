@@ -221,42 +221,233 @@ TEST(TEST_ARITHMETIC, INST_ADC_INDY)
 }
 
 //////////////////////////////////////////////////////////////////////////
-/*
 
 TEST(TEST_ARITHMETIC, INST_SBC_IM)
 {
 	cpu.Reset();
 
-	cpu.A = 0b10110001;		// B1
-	cpu.Flag.C = false;
+	cpu.A = 0;
+	cpu.Flag.C = true;
 	cpu.Flag.Z = cpu.Flag.N = true;
 
 	mem[0xFFFC] = SBC_IM;
-	mem[0xFFFD] = 0b01111001;	// 79
+	mem[0xFFFD] = 0;
 
 	CPU CPUCopy = cpu;
 	const int _cycle = 2;
 	int usedcycle = RunMachine(_cycle);
 
 	EXPECT_EQ(usedcycle, _cycle);
-	EXPECT_EQ(cpu.A, 0x2A);	// 12A
+	EXPECT_EQ(cpu.A, 0);
 
-	EXPECT_FALSE(cpu.Flag.Z);
+	EXPECT_TRUE(cpu.Flag.Z);
 	EXPECT_FALSE(cpu.Flag.N);
+	EXPECT_FALSE(cpu.Flag.V);
 	EXPECT_TRUE(cpu.Flag.C);
-	EXPECT_TRUE(cpu.Flag.V);
 }
-*/
 
 
 
-#define SBC_ZP		0xE5
-#define SBC_ZPX		0xF5
-#define SBC_ABS		0xED
-#define SBC_ABSX	0xFD
-#define SBC_ABSY	0xF9
-#define SBC_INDX	0xE1
-#define SBC_INDY	0xF1
+
+TEST(TEST_ARITHMETIC, INST_SBC_ZP)
+{
+	cpu.Reset();
+
+	cpu.A = 0;
+	cpu.Flag.C = true;
+	cpu.Flag.Z = cpu.Flag.N = true;
+
+	mem[0xFFFC] = SBC_ZP;
+	mem[0xFFFD] = 0x10;
+	mem[0x0010] = 0;
+
+	CPU CPUCopy = cpu;
+	const int _cycle = 3;
+	int usedcycle = RunMachine(_cycle);
+
+	EXPECT_EQ(usedcycle, _cycle);
+	EXPECT_EQ(cpu.A, 0);
+
+	EXPECT_TRUE(cpu.Flag.Z);
+	EXPECT_FALSE(cpu.Flag.N);
+	EXPECT_FALSE(cpu.Flag.V);
+	EXPECT_TRUE(cpu.Flag.C);
+}
+
+TEST(TEST_ARITHMETIC, INST_SBC_ZPX)
+{
+	cpu.Reset();
+
+	cpu.A = 0;
+	cpu.X = 0x04;
+	cpu.Flag.C = true;
+	cpu.Flag.Z = cpu.Flag.N = true;
+
+	mem[0xFFFC] = SBC_ZPX;
+	mem[0xFFFD] = 0x10;
+	mem[0x0014] = 0;
+
+	CPU CPUCopy = cpu;
+	const int _cycle = 4;
+	int usedcycle = RunMachine(_cycle);
+
+	EXPECT_EQ(usedcycle, _cycle);
+	EXPECT_EQ(cpu.A, 0);
+
+	EXPECT_TRUE(cpu.Flag.Z);
+	EXPECT_FALSE(cpu.Flag.N);
+	EXPECT_FALSE(cpu.Flag.V);
+	EXPECT_TRUE(cpu.Flag.C);
+}
+
+
+TEST(TEST_ARITHMETIC, INST_SBC_ABS)
+{
+	cpu.Reset();
+
+	cpu.A = 0;
+	cpu.Flag.C = true;
+	cpu.Flag.Z = cpu.Flag.N = true;
+
+	mem[0xFFFC] = SBC_ABS;
+	mem[0xFFFD] = 0x00;
+	mem[0xFFFE] = 0x80;
+
+	mem[0x8000] = 0;
+
+	CPU CPUCopy = cpu;
+	const int _cycle = 4;
+	int usedcycle = RunMachine(_cycle);
+
+	EXPECT_EQ(usedcycle, _cycle);
+	EXPECT_EQ(cpu.A, 0);
+
+	EXPECT_TRUE(cpu.Flag.Z);
+	EXPECT_FALSE(cpu.Flag.N);
+	EXPECT_FALSE(cpu.Flag.V);
+	EXPECT_TRUE(cpu.Flag.C);
+}
+
+
+TEST(TEST_ARITHMETIC, INST_SBC_ABSX)
+{
+	cpu.Reset();
+
+	cpu.A = 0;
+	cpu.X = 0x04;
+	cpu.Flag.C = true;
+	cpu.Flag.Z = cpu.Flag.N = true;
+
+	mem[0xFFFC] = SBC_ABSX;
+	mem[0xFFFD] = 0x80;
+	mem[0xFFFE] = 0x44;
+
+	mem[0x4484] = 0;
+
+
+	CPU CPUCopy = cpu;
+	const int _cycle = 4;
+	int usedcycle = RunMachine(_cycle);
+
+	EXPECT_EQ(usedcycle, _cycle);
+	EXPECT_EQ(cpu.A, 0);
+
+	EXPECT_TRUE(cpu.Flag.Z);
+	EXPECT_FALSE(cpu.Flag.N);
+	EXPECT_FALSE(cpu.Flag.V);
+	EXPECT_TRUE(cpu.Flag.C);
+}
+
+TEST(TEST_ARITHMETIC, INST_SBC_ABSY)
+{
+	cpu.Reset();
+
+	cpu.A = 0;
+	cpu.Y = 0x04;
+	cpu.Flag.C = true;
+	cpu.Flag.Z = cpu.Flag.N = true;
+
+	mem[0xFFFC] = SBC_ABSY;
+	mem[0xFFFD] = 0x80;
+	mem[0xFFFE] = 0x44;
+
+	mem[0x4484] = 0;
+
+	CPU CPUCopy = cpu;
+	const int _cycle = 4;
+	int usedcycle = RunMachine(_cycle);
+
+	EXPECT_EQ(usedcycle, _cycle);
+	EXPECT_EQ(cpu.A, 0);
+
+	EXPECT_TRUE(cpu.Flag.Z);
+	EXPECT_FALSE(cpu.Flag.N);
+	EXPECT_FALSE(cpu.Flag.V);
+	EXPECT_TRUE(cpu.Flag.C);
+}
+
+
+TEST(TEST_ARITHMETIC, INST_SBC_INDX)
+{
+	cpu.Reset();
+
+	cpu.A = 0;
+	cpu.X = 4;
+	cpu.Flag.C = true;
+	cpu.Flag.Z = cpu.Flag.N = true;
+
+	mem[0xFFFC] = SBC_INDX;
+	mem[0xFFFD] = 0x02;
+
+	mem[0x0006] = 0x00;	// 0x02 + 0x04
+	mem[0x0007] = 0x80;
+
+	mem[0x8000] = 0;
+
+
+	CPU CPUCopy = cpu;
+	const int _cycle = 6;
+	int usedcycle = RunMachine(_cycle);
+
+	EXPECT_EQ(usedcycle, _cycle);
+	EXPECT_EQ(cpu.A, 0);
+
+	EXPECT_TRUE(cpu.Flag.Z);
+	EXPECT_FALSE(cpu.Flag.N);
+	EXPECT_FALSE(cpu.Flag.V);
+	EXPECT_TRUE(cpu.Flag.C);
+}
+
+TEST(TEST_ARITHMETIC, INST_SBC_INDY)
+{
+	cpu.Reset();
+
+	cpu.A = 0;
+	cpu.Y = 0xF4;
+	cpu.Flag.C = true;
+	cpu.Flag.Z = cpu.Flag.N = true;
+
+	mem[0xFFFC] = SBC_INDY;
+	mem[0xFFFD] = 0x02;
+
+	mem[0x0002] = 0xF0;
+	mem[0x0003] = 0x80;
+
+	mem[0x80F0 + cpu.Y] = 0;	// 0x8000 + Y reg
+
+	CPU CPUCopy = cpu;
+	const int _cycle = 6;
+	int usedcycle = RunMachine(_cycle);
+
+	EXPECT_EQ(usedcycle, _cycle);
+	EXPECT_EQ(cpu.A, 0);
+
+	EXPECT_TRUE(cpu.Flag.Z);
+	EXPECT_FALSE(cpu.Flag.N);
+	EXPECT_FALSE(cpu.Flag.V);
+	EXPECT_TRUE(cpu.Flag.C);
+}
+
 
 //////////////////////////////////////////////////////////////////////////
 

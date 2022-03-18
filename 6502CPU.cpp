@@ -89,6 +89,12 @@ void CPU::SetCarryFlag(WORD value)
 {
 	Flag.C = (value & 0xFF00) > 0;
 	//SetFlag(FLAG_CARRY, (value & 0xFF00) > 0);
+
+}
+
+void CPU::SetCarryFlagNegative(WORD value)
+{
+	Flag.C = (value < 0x100);
 }
 
 void CPU::SetOverflow(BYTE oldv0, BYTE v0, BYTE v1)
@@ -1086,45 +1092,66 @@ int CPU::Run(Memory &mem, int &cycle)
 
 			// SBC - Subtract with Carry
 			// A, Z, C, N = A - M - (1 - C)
-			case SBC_IM	:
+			case SBC_IM	:	// 2 cycle
 			{
 				BYTE v = Fetch(mem, cycle);
-
+				Execute_SBC(v);
 			}
 			break;
 
-			case SBC_ZP:
+			case SBC_ZP:	// 3 cycle
 			{
+				WORD addr = addr_mode_ZP(mem, cycle);
+				BYTE v = ReadByte(mem, addr, cycle);
+				Execute_SBC(v);
 			}
 			break;
 
 			case SBC_ZPX:
 			{
+				WORD addr = addr_mode_ZPX(mem, cycle);
+				BYTE v = ReadByte(mem, addr, cycle);
+				Execute_SBC(v);
 			}
 			break;
 
 			case SBC_ABS:
 			{
+				WORD addr = addr_mode_ABS(mem, cycle);
+				BYTE v = ReadByte(mem, addr, cycle);
+				Execute_SBC(v);
 			}
 			break;
 
 			case SBC_ABSX:
 			{
+				WORD addr = addr_mode_ABSX(mem, cycle);
+				BYTE v = ReadByte(mem, addr, cycle);
+				Execute_SBC(v);
 			}
 			break;
 
 			case SBC_ABSY:
 			{
+				WORD addr = addr_mode_ABSY(mem, cycle);
+				BYTE v = ReadByte(mem, addr, cycle);
+				Execute_SBC(v);
 			}
 			break;
 
 			case SBC_INDX:
 			{
+				WORD addr = addr_mode_INDX(mem, cycle);
+				BYTE v = ReadByte(mem, addr, cycle);
+				Execute_SBC(v);
 			}
 			break;
 
 			case SBC_INDY:
 			{
+				WORD addr = addr_mode_INDY(mem, cycle);
+				BYTE v = ReadByte(mem, addr, cycle);
+				Execute_SBC(v);
 			}
 			break;
 
@@ -1249,6 +1276,152 @@ int CPU::Run(Memory &mem, int &cycle)
 			}
 			break;
 
+			////////////////////////////////////////////////////////////////////////////// SHIFT
+
+			// Arithmetic Shift Left
+			case ASL : // 2 cycle
+			{
+				// A,Z,C,N = M*2 or M,Z,C,N = M*2
+				// Carry Bit 계산을 먼저해야한다. Shift할 값자체가 -(NEG)인 경우 왼쪽 shift는 Carry를 일으키기 때문
+				Execute_ASL(A, cycle);
+			}
+			break;
+
+			case ASL_ZP: // 5 cycle
+			{
+				WORD addr = addr_mode_ZP(mem, cycle);
+				BYTE v = ReadByte(mem, addr, cycle);
+				Execute_ASL(v, cycle);
+				WriteByte(mem, v, addr, cycle);
+			}
+			break;
+
+			case ASL_ZPX: // 6 cycle
+			{
+				WORD addr = addr_mode_ZPX(mem, cycle);
+				BYTE v = ReadByte(mem, addr, cycle);
+				Execute_ASL(v, cycle);
+				WriteByte(mem, v, addr, cycle);
+			}
+			break;
+
+			case ASL_ABS: // 6 cycle
+			{
+				WORD addr = addr_mode_ABS(mem, cycle);
+				BYTE v = ReadByte(mem, addr, cycle);
+				Execute_ASL(v, cycle);
+				WriteByte(mem, v, addr, cycle);
+
+			}
+			break;
+
+			case ASL_ABSX: // 7 cycle
+			{
+				WORD addr = addr_mode_ABSX(mem, cycle);
+				BYTE v = ReadByte(mem, addr, cycle);
+				Execute_ASL(v, cycle);
+				WriteByte(mem, v, addr, cycle);
+
+			}
+			break;
+
+			// Logical Shift Right : A,C,Z,N = A/2 or M,C,Z,N = M/2
+			// Each of the bits in A or M is shift one place to the right. 
+			// The bit that was in bit 0 is shifted into the carry flag. Bit 7 is set to zero.
+			// Carry Flag :	Set to contents of old bit 0
+			case LSR:
+			{
+				Execute_LSR(A, cycle);
+			}
+			break;
+			case LSR_ZP:
+			{
+				WORD addr = addr_mode_ZP(mem, cycle);
+				BYTE v = ReadByte(mem, addr, cycle);
+				Execute_LSR(v, cycle);
+				WriteByte(mem, v, addr, cycle);
+}
+			break;
+			case LSR_ZPX:
+			{
+				WORD addr = addr_mode_ZPX(mem, cycle);
+				BYTE v = ReadByte(mem, addr, cycle);
+				Execute_LSR(v, cycle);
+				WriteByte(mem, v, addr, cycle);
+				SetZeroNegative(v);
+			}
+			break;
+			case LSR_ABS:
+			{
+				WORD addr = addr_mode_ABS(mem, cycle);
+				BYTE v = ReadByte(mem, addr, cycle);
+				Execute_LSR(v, cycle);
+				WriteByte(mem, v, addr, cycle);
+				SetZeroNegative(v);
+			}
+			break;
+			case LSR_ABSX:
+			{
+				WORD addr = addr_mode_ABSX(mem, cycle);
+				BYTE v = ReadByte(mem, addr, cycle);
+				Execute_LSR(v, cycle);
+				WriteByte(mem, v, addr, cycle);
+				SetZeroNegative(v);
+			}
+			break;
+
+			case ROL:
+			{
+
+			}
+			break;
+			case ROL_ZP:
+			{
+
+			}
+			break;
+			case ROL_ZPX:
+			{
+
+			}
+			break;
+			case ROL_ABS:
+			{
+
+			}
+			break;
+			case ROL_ABSX:
+			{
+
+			}
+			break;
+
+			case ROR:
+			{
+
+			}
+			break;
+			case ROR_ZP:
+			{
+
+			}
+			break;
+			case ROR_ZPX:
+			{
+
+			}
+			break;
+			case ROR_ABS:
+			{
+
+			}
+			break;
+			case ROR_ABSX:
+			{
+
+			}
+			break;
+
 			//////////////////////////////////////////////////////////////////////////////
 
 			case NOP :
@@ -1259,6 +1432,7 @@ int CPU::Run(Memory &mem, int &cycle)
 
 			default:
 				printf("Unknown instruction : %x\n", inst);
+				throw -1;
 				break;
 		}
 	}
@@ -1400,6 +1574,23 @@ void CPU::Execute_ADC(BYTE v)
 	SetOverflow(oldA, A, v);
 }
 
+void CPU::Execute_SBC(BYTE v)
+{
+
+	// This instruction subtracts the contents of a memory location to the accumulator 
+	// together with the not of the carry bit.If overflow occurs the carry bit is clear, 
+	// this enables multiple byte subtraction to be performed.
+
+	BYTE oldA = A;
+	WORD Result = A - v - (1-Flag.C);
+	A = (Result & 0xFF);
+
+	SetZeroNegative(A);
+	SetCarryFlagNegative(Result);
+	SetOverflow(oldA, A, v);
+
+}
+
 void CPU::Execute_CMP(BYTE v)
 {
 	WORD t = A - v;
@@ -1422,4 +1613,20 @@ void CPU::Execute_CPY(BYTE v)
 	Flag.N = (t & FLAG_NEGATIVE) > 0;	// Set if bit 7 of the result is set
 	Flag.Z = Y == v;					// Set if Y = M
 	Flag.C = Y >= v;					// Set if Y >= M
+}
+
+void CPU::Execute_ASL(BYTE &v, int &cycle)
+{
+	Flag.C = (v & FLAG_NEGATIVE) > 0;
+	v = v << 1;
+	cycle--;
+	SetZeroNegative(v);
+}
+
+void CPU::Execute_LSR(BYTE& v, int& cycle)
+{
+	Flag.C = (v & 0x01);
+	v = v >> 1;
+	cycle--;
+	SetZeroNegative(v);
 }
