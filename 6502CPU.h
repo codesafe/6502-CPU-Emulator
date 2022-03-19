@@ -55,10 +55,12 @@ BYTE N : 1; //7: Negative
 	(STA) (STX) (STY)
 	(ADC) (SBC) (CMP) (CPX) (CPY)
 	(DEC) (DEX) (DEY) (INC) (INX) (INY)
-	(TAX) (TAY)  (TXA) (TYA)
+	(TAX) (TAY) (TXA) (TYA)
+	(ASL) (LSR) (ROL) (ROR)
 
-	ASL LSR ROL ROR 
-	BCC BCS BEQ BMI BNE BPL BRK BVC BVS CLC CLD CLI CLV 
+	BCC BCS BEQ BMI BNE BPL 
+	BRK 
+	BVC BVS CLC CLD CLI CLV 
 	RTI  SEC SED SEI  
 */
 
@@ -240,6 +242,8 @@ BYTE N : 1; //7: Negative
 #define ROR_ABS		0x6E
 #define ROR_ABSX	0x7E
 
+// Force Interrupt
+#define BRK			0x00
 
 struct StatusFlags
 {
@@ -350,6 +354,8 @@ public:
 	void Execute_CPY(BYTE v);
 	void Execute_ASL(BYTE &v, int &cycle);
 	void Execute_LSR(BYTE& v, int& cycle);
+	void Execute_ROL(BYTE& v, int& cycle);
+	void Execute_ROR(BYTE& v, int& cycle);
 };
 
 #endif

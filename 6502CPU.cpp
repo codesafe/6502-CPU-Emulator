@@ -1329,12 +1329,12 @@ int CPU::Run(Memory &mem, int &cycle)
 			// Each of the bits in A or M is shift one place to the right. 
 			// The bit that was in bit 0 is shifted into the carry flag. Bit 7 is set to zero.
 			// Carry Flag :	Set to contents of old bit 0
-			case LSR:
+			case LSR:	// 2 cycle
 			{
 				Execute_LSR(A, cycle);
 			}
 			break;
-			case LSR_ZP:
+			case LSR_ZP:	// 5 cycle
 			{
 				WORD addr = addr_mode_ZP(mem, cycle);
 				BYTE v = ReadByte(mem, addr, cycle);
@@ -1342,87 +1342,124 @@ int CPU::Run(Memory &mem, int &cycle)
 				WriteByte(mem, v, addr, cycle);
 }
 			break;
-			case LSR_ZPX:
+			case LSR_ZPX:	// 6 cycle
 			{
 				WORD addr = addr_mode_ZPX(mem, cycle);
 				BYTE v = ReadByte(mem, addr, cycle);
 				Execute_LSR(v, cycle);
 				WriteByte(mem, v, addr, cycle);
-				SetZeroNegative(v);
 			}
 			break;
-			case LSR_ABS:
+			case LSR_ABS:	// 6 cycle
 			{
 				WORD addr = addr_mode_ABS(mem, cycle);
 				BYTE v = ReadByte(mem, addr, cycle);
 				Execute_LSR(v, cycle);
 				WriteByte(mem, v, addr, cycle);
-				SetZeroNegative(v);
 			}
 			break;
-			case LSR_ABSX:
+			case LSR_ABSX:	// 7 cycle
 			{
-				WORD addr = addr_mode_ABSX(mem, cycle);
+				WORD addr = addr_mode_ABSX_NoPage(mem, cycle);
 				BYTE v = ReadByte(mem, addr, cycle);
 				Execute_LSR(v, cycle);
 				WriteByte(mem, v, addr, cycle);
-				SetZeroNegative(v);
 			}
 			break;
 
-			case ROL:
+			// Move each of the bits in either A or M one place to the left. 
+			// Bit 0 is filled with the current value of the carry flag whilst 
+			// the old bit 7 becomes the new carry flag value.
+			case ROL:	// 2 cycle
 			{
-
+				Execute_ROL(A, cycle);
 			}
 			break;
-			case ROL_ZP:
+			case ROL_ZP:	// 5 cycle
 			{
-
+				WORD addr = addr_mode_ZP(mem, cycle);
+				BYTE v = ReadByte(mem, addr, cycle);
+				Execute_ROL(v, cycle);
+				WriteByte(mem, v, addr, cycle);
 			}
 			break;
-			case ROL_ZPX:
+			case ROL_ZPX:	// 6 cycle
 			{
-
+				WORD addr = addr_mode_ZPX(mem, cycle);
+				BYTE v = ReadByte(mem, addr, cycle);
+				Execute_ROL(v, cycle);
+				WriteByte(mem, v, addr, cycle);
 			}
 			break;
-			case ROL_ABS:
+			case ROL_ABS:	// 6 cycle
 			{
-
+				WORD addr = addr_mode_ABS(mem, cycle);
+				BYTE v = ReadByte(mem, addr, cycle);
+				Execute_ROL(v, cycle);
+				WriteByte(mem, v, addr, cycle);
 			}
 			break;
-			case ROL_ABSX:
+			case ROL_ABSX:	// 7 cycle
 			{
-
+				// 여기는 ABS No page
+				WORD addr = addr_mode_ABSX_NoPage(mem, cycle);
+				BYTE v = ReadByte(mem, addr, cycle);
+				Execute_ROL(v, cycle);
+				WriteByte(mem, v, addr, cycle);
 			}
 			break;
 
+			// Rotate Right
+			// Move each of the bits in either A or M one place to the right.
+			// Bit 7 is filled with the current value of the carry flag whilst 
+			// the old bit 0 becomes the new carry flag value.
 			case ROR:
 			{
-
+				Execute_ROR(A, cycle);
 			}
 			break;
 			case ROR_ZP:
 			{
-
+				WORD addr = addr_mode_ZP(mem, cycle);
+				BYTE v = ReadByte(mem, addr, cycle);
+				Execute_ROR(v, cycle);
+				WriteByte(mem, v, addr, cycle);
 			}
 			break;
 			case ROR_ZPX:
 			{
-
+				WORD addr = addr_mode_ZPX(mem, cycle);
+				BYTE v = ReadByte(mem, addr, cycle);
+				Execute_ROR(v, cycle);
+				WriteByte(mem, v, addr, cycle);
 			}
 			break;
 			case ROR_ABS:
 			{
-
+				WORD addr = addr_mode_ABS(mem, cycle);
+				BYTE v = ReadByte(mem, addr, cycle);
+				Execute_ROR(v, cycle);
+				WriteByte(mem, v, addr, cycle);
 			}
 			break;
 			case ROR_ABSX:
 			{
-
+				WORD addr = addr_mode_ABSX_NoPage(mem, cycle);
+				BYTE v = ReadByte(mem, addr, cycle);
+				Execute_ROR(v, cycle);
+				WriteByte(mem, v, addr, cycle);
 			}
 			break;
 
 			//////////////////////////////////////////////////////////////////////////////
+
+			// The BRK instruction forces the generation of an interrupt request.
+			// The program counterand processor status are pushed on the stack then 
+			// the IRQ interrupt vector at $FFFE / F is loaded into the PC and the break 
+			// flag in the status set to one.
+			case BRK :
+
+			break;
 
 			case NOP :
 				cycle--;
@@ -1630,3 +1667,41 @@ void CPU::Execute_LSR(BYTE& v, int& cycle)
 	cycle--;
 	SetZeroNegative(v);
 }
+
+/*
+			   +------------------------------+
+			   |         M or A               |
+			   |   +-+-+-+-+-+-+-+-+    +-+   |
+  Operation:   +-< |7|6|5|4|3|2|1|0| <- |C| <-+         N Z C I D V
+				   +-+-+-+-+-+-+-+-+    +-+             / / / _ _ _
+*/
+void CPU::Execute_ROL(BYTE& v, int& cycle)
+{
+	// 이전의 carry flag값을 Shift후의 0bit에 채워준다
+	BYTE oldcarry = Flag.C ? 0x01 : 0x00;
+	Flag.C = (v & FLAG_NEGATIVE) > 0;
+	v <<= 1;
+	v |= oldcarry;
+	cycle--;
+	SetZeroNegative(v);
+}
+
+/*
+			   +------------------------------+
+			   |                              |
+			   |   +-+    +-+-+-+-+-+-+-+-+   |
+  Operation:   +-> |C| -> |7|6|5|4|3|2|1|0| >-+         N Z C I D V
+				   +-+    +-+-+-+-+-+-+-+-+             / / / _ _ _
+*/
+void CPU::Execute_ROR(BYTE& v, int& cycle)
+{
+	// 최하비트가 1인가? -> 다음 캐리비트로 설정
+	BYTE oldcarry = (v & FLAG_CARRY) > 0;
+	v = v >> 1;
+	// 이전 Carry가 1이면 NEGATIVE 채움
+	v |= (Flag.C ? FLAG_NEGATIVE : 0);
+	cycle--;
+	Flag.C = oldcarry;
+	SetZeroNegative(v);
+}
+
