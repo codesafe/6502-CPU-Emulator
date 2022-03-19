@@ -57,11 +57,11 @@ BYTE N : 1; //7: Negative
 	(DEC) (DEX) (DEY) (INC) (INX) (INY)
 	(TAX) (TAY) (TXA) (TYA)
 	(ASL) (LSR) (ROL) (ROR)
+	(BRK) (RTI)
 
 	BCC BCS BEQ BMI BNE BPL 
-	BRK 
 	BVC BVS CLC CLD CLI CLV 
-	RTI  SEC SED SEI  
+	SEC SED SEI  
 */
 
 // LDA (LoaD Accumulator)
@@ -244,6 +244,9 @@ BYTE N : 1; //7: Negative
 
 // Force Interrupt
 #define BRK			0x00
+#define RTI			0x40
+
+
 
 struct StatusFlags
 {

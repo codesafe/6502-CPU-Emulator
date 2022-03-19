@@ -52,6 +52,7 @@
     <ClCompile Include="UnitTestShift.cpp" />
     <ClCompile Include="UnitTestStackOperation.cpp" />
     <ClCompile Include="UnitTestStore.cpp" />
+    <ClCompile Include="UnitTestSystem.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Emulator.vcxproj">

@@ -168,13 +168,16 @@ void CPU::PushStackByte(Memory& mem, BYTE value, int& cycle)
 {
 	WriteByte(mem, value, GetStackAddress(), cycle);
 	SP--;
+	cycle--;
 }
 
 // Word를 Stack에 Push
 void CPU::PushStackWord(Memory& mem, WORD value, int& cycle)
 {
+	// Hi byte 먼저
 	WriteByte(mem, value >> 8, GetStackAddress(), cycle);
 	SP--;
+	// Lo byte 나중에
 	WriteByte(mem, value & 0xFF, GetStackAddress(), cycle);
 	SP--;
 }
@@ -582,7 +585,6 @@ int CPU::Run(Memory &mem, int &cycle)
 			{
 				// A 레지스터를 스택에 Push
 				PushStackByte(mem, A, cycle);
-				cycle--;
 			}
 			break;
 
@@ -616,7 +618,6 @@ int CPU::Run(Memory &mem, int &cycle)
 			{
 				// PS -> Stack에 Push
 				PushStackByte(mem, PS, cycle);
-				cycle--;
 			}
 			break;
 
@@ -1453,12 +1454,30 @@ int CPU::Run(Memory &mem, int &cycle)
 
 			//////////////////////////////////////////////////////////////////////////////
 
-			// The BRK instruction forces the generation of an interrupt request.
-			// The program counterand processor status are pushed on the stack then 
-			// the IRQ interrupt vector at $FFFE / F is loaded into the PC and the break 
-			// flag in the status set to one.
-			case BRK :
+			// BRK 명령은 인터럽트 요청의 생성을 강제한다.
+			// 프로그램 카운터 및 프로세서 상태가 스택에서 푸시된 다음 $ FFFE/F의 IRQ 인터럽트 벡터가 
+			// PC에로드되고 상태의 중단 플래그가 1로 설정됩니다.
+			case BRK :	// 7 cycle
+			{
+				// PC Push
+				PushStackWord(mem, PC, cycle);
+				// SP Push
+				PushStackByte(mem, PS, cycle);
+				WORD interruptVector = ReadWord(mem, 0xFFFE, cycle);
+				PC = interruptVector;
+				Flag.B = 1;
+			}
+			break;
 
+			// Return from Interrupt
+			// RTI 명령은 인터럽트 처리 루틴의 끝에서 사용됩니다.
+			// 프로그램 카운터 뒤에 오는 스택에서 프로세서 플래그를 가져옵니다.
+			case RTI :	// 6 cycle
+			{
+				PS = PopStackByte(mem, cycle);
+				PC = PopStackWord(mem, cycle);
+
+			}
 			break;
 
 			case NOP :
