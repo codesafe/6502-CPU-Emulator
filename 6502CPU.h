@@ -58,10 +58,9 @@ BYTE N : 1; //7: Negative
 	(TAX) (TAY) (TXA) (TYA)
 	(ASL) (LSR) (ROL) (ROR)
 	(BRK) (RTI)
-
-	BCC BCS BEQ BMI BNE BPL 
-	BVC BVS CLC CLD CLI CLV 
-	SEC SED SEI  
+	(BCC) (BCS) (BEQ) (BMI) (BNE) (BPL) (BVC) (BVS)
+	(CLC) (CLD) (CLI) (CLV)
+	(SEC) (SED) (SEI)  
 */
 
 // LDA (LoaD Accumulator)
@@ -246,18 +245,35 @@ BYTE N : 1; //7: Negative
 #define BRK			0x00
 #define RTI			0x40
 
+// Branches
+#define BCC			0x90
+#define BCS			0xB0
+#define BEQ			0xF0
+#define BMI			0x30
+#define BNE			0xD0
+#define BPL			0x10
+#define BVC			0x50
+#define BVS			0x70
 
+// Status Flag Changes
+#define CLC			0x18
+#define CLD			0xD8
+#define CLI			0x58
+#define CLV			0xB8
+#define SEC			0x38
+#define SED			0xF8
+#define SEI			0x78
 
 struct StatusFlags
 {
-	BYTE C : 1;	//0: Carry Flag	
-	BYTE Z : 1;	//1: Zero Flag
-	BYTE I : 1; //2: Interrupt disable
-	BYTE D : 1; //3: Decimal mode
-	BYTE B : 1; //4: Break
-	BYTE Unused : 1; //5: Unused
-	BYTE V : 1; //6: Overflow
-	BYTE N : 1; //7: Negative
+	BYTE C : 1;			//0: Carry Flag	
+	BYTE Z : 1;			//1: Zero Flag
+	BYTE I : 1;			//2: Interrupt disable
+	BYTE D : 1;			//3: Decimal mode
+	BYTE B : 1;			//4: Break
+	BYTE Unused : 1;	//5: Unused
+	BYTE V : 1;			//6: Overflow
+	BYTE N : 1;			//7: Negative
 };
 
 class CPU
@@ -273,6 +289,7 @@ public:
 	BYTE	SP;		// Stack Pointer
 	WORD	PC;		// program control
 
+	// Processor Status : Flag
 	union
 	{
 		BYTE PS;
@@ -359,6 +376,8 @@ public:
 	void Execute_LSR(BYTE& v, int& cycle);
 	void Execute_ROL(BYTE& v, int& cycle);
 	void Execute_ROR(BYTE& v, int& cycle);
+
+	void Execute_BRANCH(bool v, bool condition, Memory& mem, int& cycle);
 };
 
 #endif

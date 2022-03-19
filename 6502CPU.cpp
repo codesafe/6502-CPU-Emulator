@@ -894,7 +894,7 @@ int CPU::Run(Memory &mem, int &cycle)
 
 			////////////////////////////////////////////////////////////////////////////// increase / decrease
 
-			case INX :
+			case INX :	// 2 cycle
 			{
 				// Increment X Register / X,Z,N = X+1
 				X++;
@@ -904,7 +904,7 @@ int CPU::Run(Memory &mem, int &cycle)
 			}
 			break;
 
-			case INY :
+			case INY :	// 2 cycle
 			{
 				// Increment Y Register / Y,Z,N = Y+1
 				Y++;
@@ -913,7 +913,7 @@ int CPU::Run(Memory &mem, int &cycle)
 				Flag.N = (Y & FLAG_NEGATIVE) != 0;
 			}
 			break;
-			case DEX:
+			case DEX:	// 2 cycle
 			{
 				// Decrease X Register / X,Z,N = X+1
 				X--;
@@ -924,7 +924,7 @@ int CPU::Run(Memory &mem, int &cycle)
 			}
 			break;
 
-			case DEY:
+			case DEY:	// 2 cycle
 			{
 				// Decrement Y Register / Y,Z,N = Y+1
 				Y--;
@@ -1452,6 +1452,145 @@ int CPU::Run(Memory &mem, int &cycle)
 			}
 			break;
 
+
+			////////////////////////////////////////////////////////////////////////////// Branches
+
+			// Branch if carry flag clear
+			// If the carry flag is clear then add the relative displacement to the program 
+			// counter to cause a branch to a new location.
+			case BCC :
+			{
+				Execute_BRANCH(Flag.C, false, mem, cycle);
+/*
+				BYTE offset = Fetch(mem, cycle);
+				if (!Flag.C)
+				{
+					// Page를 넘어가면 Cycle 증가
+					BYTE lo = PC & 0x00FF;
+					WORD t = lo + (char)offset;
+					if (t > 0xFF) cycle--;
+
+					PC += (char)offset;
+					cycle--;
+				}*/
+			}
+			break;
+
+			// Branch if Carry Set
+			// If the carry flag is set then add the relative displacement to the program 
+			// counter to cause a branch to a new location.
+			// BCC 반대
+			case BCS: // 2 ~ 4 cycle
+			{
+				Execute_BRANCH(Flag.C, true, mem, cycle);
+			}
+			break;
+
+			// Branch if Equal
+			// If the zero flag is set then add the relative displacement to the program counter 
+			// to cause a branch to a new location.
+			// 2 (+1 if branch succeeds +2 if to a new page)
+			case BEQ:	// 2 cycle + Zero이면 1 cycle추가 + Page넘어가면 1 cycle 추가
+			{
+				Execute_BRANCH(Flag.Z, true, mem, cycle);
+			}
+			break;
+
+			// If the zero flag is clear then add the relative displacement 
+			// to the program counter to cause a branch to a new location.
+			// BEQ랑 반대
+			case BNE:
+			{
+				Execute_BRANCH(Flag.Z, false, mem, cycle);
+			}
+			break;
+
+			// Branch if negative flag set
+			case BMI:
+			{
+				Execute_BRANCH(Flag.N, true, mem, cycle);
+			}
+			break;
+
+			// Branch if negative flag clear
+			case BPL:
+			{
+				Execute_BRANCH(Flag.N, false, mem, cycle);
+			}
+			break;
+
+			// Branch if overflow flag clear
+			case BVC:
+			{
+				Execute_BRANCH(Flag.V, false, mem, cycle);
+			}
+			break;
+
+			// Branch if overflow flag set
+			case BVS:
+			{
+				Execute_BRANCH(Flag.V, true, mem, cycle);
+			}
+			break;
+
+			////////////////////////////////////////////////////////////////////////////// Status Flag Changes
+
+			// Clear carry flag
+			case CLC :	// 2 cycle
+			{
+				Flag.C = 0;
+				cycle--;
+			}
+			break;
+
+			// Clear Decimal Mode
+			case CLD:	// 2 cycle
+			{
+				Flag.D = 0;
+				cycle--;
+			}
+			break;
+
+			// Clear Interrupt Disable
+			case CLI:	// 2 cycle
+			{
+				Flag.I = 0;
+				cycle--;
+			}
+			break;
+
+			// Clear Overflow Flag
+			case CLV:	// 2 cycle
+			{
+				Flag.V = 0;
+				cycle--;
+			}
+			break;
+
+			// Set carry flag
+			case SEC:	// 2 cycle
+			{
+				Flag.C = 1;
+				cycle--;
+			}
+			break;
+
+			// Set decimal mode flag
+			case SED:	// 2 cycle
+			{
+				Flag.D = 1;
+				cycle--;
+			}
+			break;
+
+			// Set interrupt disable flag
+			case SEI:	// 2 cycle
+			{
+				Flag.I = 1;
+				cycle--;
+			}
+			break;
+
 			//////////////////////////////////////////////////////////////////////////////
 
 			// BRK 명령은 인터럽트 요청의 생성을 강제한다.
@@ -1724,3 +1863,18 @@ void CPU::Execute_ROR(BYTE& v, int& cycle)
 	SetZeroNegative(v);
 }
 
+
+void CPU::Execute_BRANCH(bool v, bool condition, Memory &mem, int &cycle)
+{
+	BYTE offset = Fetch(mem, cycle);
+	if (v == condition)
+	{
+		// Page를 넘어가면 Cycle 증가
+		BYTE lo = PC & 0x00FF;
+		WORD t = lo + (signed char)offset;
+		if (t > 0xFF) cycle--;
+
+		PC += (signed char)offset;
+		cycle--;
+	}
+}
