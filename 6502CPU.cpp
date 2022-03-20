@@ -99,12 +99,13 @@ void CPU::SetCarryFlagNegative(WORD value)
 
 void CPU::SetOverflow(BYTE oldv0, BYTE v0, BYTE v1)
 {
-	bool sign0 = ((oldv0 ^ v1) & FLAG_NEGATIVE);	// 계산전 부호
+	bool sign0 = !((oldv0 ^ v1) & FLAG_NEGATIVE);	// 계산전 부호
 	bool sign1 = ((v0 ^ v1) & FLAG_NEGATIVE);		// 계산후 부호
 
 	// Overflow는 같은 부호를 더했는데 다른 부호가 나오면 Overflow이다
 	//SetFlag(FLAG_OVERFLOW, (sign0 != sign1));
-	Flag.V = (sign0 != sign1);
+	//Flag.V = (sign0 != sign1);
+	Flag.V = sign0 && sign1;
 }
 
 BYTE CPU::Fetch(Memory& mem, int &cycle)
@@ -1779,22 +1780,13 @@ WORD CPU::addr_mode_INDY(Memory& mem, int& cycle)
 
 void CPU::Execute_ADC(BYTE v)
 {
-// 	BYTE oldA = A;
-// 	WORD Result = A + v + Flag.C;
-// 	A = (Result & 0xFF);
-// 
-// 	SetZeroNegative(A);
-// 	SetCarryFlag(Result);
-// 	SetOverflow(oldA, A, v);
+	BYTE oldA = A;
+	WORD Result = A + v + Flag.C;
+	A = (Result & 0xFF);
 
-	const bool AreSignBitsTheSame =	!((A ^ v) & FLAG_NEGATIVE);
-	WORD Sum = A;
-	Sum += v;
-	Sum += Flag.C;
-	A = (Sum & 0xFF);
 	SetZeroNegative(A);
-	Flag.C = Sum > 0xFF;
-	Flag.V = AreSignBitsTheSame && ((A ^ v) & FLAG_NEGATIVE);
+	SetCarryFlag(Result);
+ 	SetOverflow(oldA, A, v);
 }
 
 void CPU::Execute_SBC(BYTE v)
