@@ -278,7 +278,6 @@ struct StatusFlags
 
 class CPU
 {
-private:
 
 public:
 	// Registor
@@ -296,6 +295,9 @@ public:
 		StatusFlags Flag;
 	};
 
+	// for debug
+	BYTE lastInst;
+	bool enableLog;
 
 public:
 	CPU();

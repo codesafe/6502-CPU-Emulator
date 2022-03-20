@@ -9,6 +9,7 @@
 CPU::CPU()
 {
 	Reset();
+	enableLog = false;
 }
 
 CPU::~CPU()
@@ -211,9 +212,14 @@ int CPU::Run(Memory &mem, int cycle)
 		WORD prevPC = PC;
 		// 여기에서 cycle 하나 소모
 		BYTE inst = Fetch(mem, cycle);
-		printf("A:[%2X] X:[%2X] Y:[%2X] PC:[%4X] ", A, X, Y, prevPC);
-		printf("INST : [%2X] / C:[%d] Z:[%d] I:[%d] D:[%d] B:[%d] U:[%d] V:[%d] N:[%d]\n", inst,
-			Flag.C, Flag.Z, Flag.I, Flag.D, Flag.B, Flag.Unused, Flag.V, Flag.N);
+		lastInst = inst;
+
+		if (enableLog)
+		{
+			printf("A:[%2X] X:[%2X] Y:[%2X] PC:[%4X] ", A, X, Y, prevPC);
+			printf("INST : [%2X] / C:[%d] Z:[%d] I:[%d] D:[%d] B:[%d] U:[%d] V:[%d] N:[%d]\n", inst,
+				Flag.C, Flag.Z, Flag.I, Flag.D, Flag.B, Flag.Unused, Flag.V, Flag.N);
+		}
 		switch (inst)
 		{
 			case LDA_IM: // 2 cycle
