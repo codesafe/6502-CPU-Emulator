@@ -303,7 +303,7 @@ public:
 
 	void Reset();
 	void SetPCAddress(WORD addr);
-	int Run(Memory& mem, int& cycle);
+	int Run(Memory& mem, int cycle);
 
 	void SetRegister(BYTE type, BYTE value);
 	BYTE GetRegister(BYTE type);

@@ -51,6 +51,7 @@ class Memory
 		}
 
 		WORD UpLoadProgram(BYTE *code, int codesize);
+		void UpLoadProgram(int startPos, BYTE *code, int codesize);
 };
 
 

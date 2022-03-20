@@ -38,3 +38,9 @@ WORD Memory::UpLoadProgram(BYTE* code, int codesize)
 	}
 	return addr;
 }
+
+void Memory::UpLoadProgram(int startPos, BYTE* code, int codesize)
+{
+	for (int i = 0; i < codesize; i++)
+		memory[startPos+i] = code[i];
+}

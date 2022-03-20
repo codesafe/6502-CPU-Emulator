@@ -201,15 +201,18 @@ WORD CPU::PopStackWord(Memory& mem, int& cycle)
 }
 
 
-int CPU::Run(Memory &mem, int &cycle)
+int CPU::Run(Memory &mem, int cycle)
 {
 	const int CyclesRequested = cycle;
 
 	while (cycle > 0)
 	{
+		WORD prevPC = PC;
 		// 여기에서 cycle 하나 소모
 		BYTE inst = Fetch(mem, cycle);
-
+		printf("A:[%2X] X:[%2X] Y:[%2X] PC:[%4X] ", A, X, Y, prevPC);
+		printf("INST : [%2X] / C:[%d] Z:[%d] I:[%d] D:[%d] B:[%d] U:[%d] V:[%d] N:[%d]\n", inst,
+			Flag.C, Flag.Z, Flag.I, Flag.D, Flag.B, Flag.Unused, Flag.V, Flag.N);
 		switch (inst)
 		{
 			case LDA_IM: // 2 cycle
@@ -605,11 +608,18 @@ int CPU::Run(Memory &mem, int &cycle)
 			case PLP :	// 4 cycle
 			{
 				// pop 8 bit를 --> PS (Flag) : 플레그들은 Pop된 값에의하여 새로운 플레그 상태를 갖음
-				PS = PopStackByte(mem, cycle);
+//  				PS = PopStackByte(mem, cycle);
+//  				cycle--;
+
+				BYTE _PS = PopStackByte(mem, cycle);
 				cycle--;
+				_PS &= ~(FLAG_UNUSED | FLAG_BREAK);
+				PS = 0;
+				PS |= _PS;
+
 				// B , Unused는 사용하지 않음
-				Flag.B = false;
-				Flag.Unused = false;
+				Flag.B = 0;
+				Flag.Unused = 0;
 			}
 			break;
 
@@ -617,7 +627,8 @@ int CPU::Run(Memory &mem, int &cycle)
 			case PHP :	// 3 cycle
 			{
 				// PS -> Stack에 Push
-				PushStackByte(mem, PS, cycle);
+				BYTE _PS = PS | FLAG_UNUSED | FLAG_BREAK;
+				PushStackByte(mem, _PS, cycle);
 			}
 			break;
 
@@ -856,8 +867,7 @@ int CPU::Run(Memory &mem, int &cycle)
 				// Transfer Accumulator to X
 				X = A;
 				cycle--;
-				Flag.Z = (X == 0);
-				Flag.N = (X & FLAG_NEGATIVE) != 0;
+				SetZeroNegative(X);
 			}
 			break;
 
@@ -866,8 +876,7 @@ int CPU::Run(Memory &mem, int &cycle)
 				//Transfer Accumulator to Y
 				Y = A;
 				cycle--;
-				Flag.Z = (Y == 0);
-				Flag.N = (Y & FLAG_NEGATIVE) != 0;
+				SetZeroNegative(Y);
 			}
 			break;
 
@@ -876,8 +885,7 @@ int CPU::Run(Memory &mem, int &cycle)
 				// Transfer X to Accumulator
 				A = X;
 				cycle--;
-				Flag.Z = (A == 0);
-				Flag.N = (A & FLAG_NEGATIVE) != 0;
+				SetZeroNegative(A);
 			}
 			break;
 
@@ -886,8 +894,7 @@ int CPU::Run(Memory &mem, int &cycle)
 				// Transfer Y to Accumulator
 				A = Y;
 				cycle--;
-				Flag.Z = (A == 0);
-				Flag.N = (A & FLAG_NEGATIVE) != 0;
+				SetZeroNegative(A);
 			}
 			break;
 
@@ -1599,12 +1606,18 @@ int CPU::Run(Memory &mem, int &cycle)
 			case BRK :	// 7 cycle
 			{
 				// PC Push
-				PushStackWord(mem, PC, cycle);
+				// BRK는 PC를 +1하지 않고 +2한다고 함. 그래서 PC+1 push
+				// https://www.c64-wiki.com/wiki/BRK
+				PushStackWord(mem, PC+1, cycle);
+
 				// SP Push
-				PushStackByte(mem, PS, cycle);
+				BYTE _PS = PS | FLAG_BREAK | FLAG_UNUSED;
+				PushStackByte(mem, _PS, cycle);
+
 				WORD interruptVector = ReadWord(mem, 0xFFFE, cycle);
 				PC = interruptVector;
 				Flag.B = 1;
+				Flag.I = 1;
 			}
 			break;
 
@@ -1613,9 +1626,15 @@ int CPU::Run(Memory &mem, int &cycle)
 			// 프로그램 카운터 뒤에 오는 스택에서 프로세서 플래그를 가져옵니다.
 			case RTI :	// 6 cycle
 			{
-				PS = PopStackByte(mem, cycle);
-				PC = PopStackWord(mem, cycle);
+				BYTE _PS = PopStackByte(mem, cycle);
+				_PS &= ~(FLAG_UNUSED | FLAG_BREAK);
+				PS = 0;
+				PS |= _PS;
 
+				//PS = PopStackByte(mem, cycle);
+				PC = PopStackWord(mem, cycle);
+				Flag.B = 0;
+				Flag.Unused = 0;
 			}
 			break;
 
@@ -1724,7 +1743,7 @@ WORD CPU::addr_mode_ABSY_NoPage(Memory& mem, int& cycle)
 WORD CPU::addr_mode_INDX(Memory& mem, int& cycle)
 {
 	BYTE t = Fetch(mem, cycle);
-	WORD inx = t + X;
+	BYTE inx = t + X;
 	cycle--;
 	WORD address = ReadWord(mem, inx, cycle);
 	return address;
@@ -1760,30 +1779,38 @@ WORD CPU::addr_mode_INDY(Memory& mem, int& cycle)
 
 void CPU::Execute_ADC(BYTE v)
 {
-	BYTE oldA = A;
-	WORD Result = A + v + Flag.C;
-	A = (Result & 0xFF);
+// 	BYTE oldA = A;
+// 	WORD Result = A + v + Flag.C;
+// 	A = (Result & 0xFF);
+// 
+// 	SetZeroNegative(A);
+// 	SetCarryFlag(Result);
+// 	SetOverflow(oldA, A, v);
 
+	const bool AreSignBitsTheSame =	!((A ^ v) & FLAG_NEGATIVE);
+	WORD Sum = A;
+	Sum += v;
+	Sum += Flag.C;
+	A = (Sum & 0xFF);
 	SetZeroNegative(A);
-	SetCarryFlag(Result);
-	SetOverflow(oldA, A, v);
+	Flag.C = Sum > 0xFF;
+	Flag.V = AreSignBitsTheSame && ((A ^ v) & FLAG_NEGATIVE);
 }
 
 void CPU::Execute_SBC(BYTE v)
 {
-
 	// This instruction subtracts the contents of a memory location to the accumulator 
 	// together with the not of the carry bit.If overflow occurs the carry bit is clear, 
 	// this enables multiple byte subtraction to be performed.
+// 	BYTE oldA = A;
+// 	WORD Result = A - v - (1-Flag.C);
+// 	A = (Result & 0xFF);
+// 
+// 	SetZeroNegative(A);
+// 	SetCarryFlagNegative(Result);
+// 	SetOverflow(oldA, A, v);
 
-	BYTE oldA = A;
-	WORD Result = A - v - (1-Flag.C);
-	A = (Result & 0xFF);
-
-	SetZeroNegative(A);
-	SetCarryFlagNegative(Result);
-	SetOverflow(oldA, A, v);
-
+	Execute_ADC(~v);
 }
 
 void CPU::Execute_CMP(BYTE v)
@@ -1866,15 +1893,15 @@ void CPU::Execute_ROR(BYTE& v, int& cycle)
 
 void CPU::Execute_BRANCH(bool v, bool condition, Memory &mem, int &cycle)
 {
-	BYTE offset = Fetch(mem, cycle);
+	SBYTE offset = (SBYTE)Fetch(mem, cycle);
 	if (v == condition)
 	{
 		// Page를 넘어가면 Cycle 증가
 		BYTE lo = PC & 0x00FF;
-		WORD t = lo + (signed char)offset;
+		WORD t = lo + (SBYTE)offset;
 		if (t > 0xFF) cycle--;
 
-		PC += (signed char)offset;
+		PC += (SBYTE)offset;
 		cycle--;
 	}
 }

@@ -6,8 +6,10 @@ TEST(TEST_SYSTEM, INST_BRK)
 
 	cpu.Flag.C = false;
 	cpu.Flag.Z = cpu.Flag.N = false;
+	cpu.Flag.I = false;
 
-	mem[0xFFFC] = BRK;
+	cpu.SetPCAddress(0xFF00);
+	mem[0xFF00] = BRK;
 	// interrupt vector
 	mem[0xFFFE] = 0x00;
 	mem[0xFFFF] = 0x80;
@@ -21,8 +23,10 @@ TEST(TEST_SYSTEM, INST_BRK)
 
 	// Little endian은 이렇게 Push
 	EXPECT_EQ(mem[(0x100 | CPUCopy.SP) - 0], 0xFF);
-	EXPECT_EQ(mem[(0x100 | CPUCopy.SP) - 1], 0xFD);
+	EXPECT_EQ(mem[(0x100 | CPUCopy.SP) - 1], 0x02);
 	EXPECT_EQ(mem[(0x100 | CPUCopy.SP) - 2], CPUCopy.PS);
+
+	EXPECT_EQ(cpu.Flag.I, true);
 }
 
 TEST(TEST_SYSTEM, INST_RTI)
@@ -40,6 +44,6 @@ TEST(TEST_SYSTEM, INST_RTI)
 
 	EXPECT_EQ(usedcycle, _cycle);
 	EXPECT_EQ(CPUCopy.SP, cpu.SP);
-	EXPECT_EQ(0xFFFD, cpu.PC);
+	EXPECT_EQ(0xFFFE, cpu.PC);
 	EXPECT_EQ(CPUCopy.PS, cpu.PS);
 }
