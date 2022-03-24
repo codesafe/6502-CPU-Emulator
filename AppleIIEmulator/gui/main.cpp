@@ -1,16 +1,16 @@
 
-#include "../../Predef.h"
-#include "../../6502CPU.h"
-#include "../../6502Memory.h"
+#include "Predef.h"
+#include "AppleCPU.h"
+#include "AppleMem.h"
+
+#include "apple2device.h"
 #include "raylib.h"
 
 #include <string>
 #include <format>
+#include <list>
 
-// 6502 CPU
-CPU cpu;
-// Memory
-Memory mem;
+Apple2Device appleplus;
 
 std::string format_string(const std::string fmt, ...) 
 {
@@ -45,26 +45,26 @@ void UpLoadProgram()
 	fread(buffer, 1, codesize, fp);
 	fclose(fp);
 
-	mem.UpLoadProgram(0x000A, buffer, codesize);
+	appleplus.mem.UpLoadProgram(0x000A, buffer, codesize);
 	delete[] buffer;
-	cpu.PC = 0x400;
+	appleplus.cpu.PC = 0x400;
 }
 
 void DrawRegistor()
 {
-	std::string msga = format_string("REG A : %2X", cpu.A);
+	std::string msga = format_string("REG A : %2X", appleplus.cpu.A);
 	DrawText(msga.c_str(), 10, 25, 20, WHITE);
 
-	std::string msgx = format_string("REG X : %2X", cpu.X);
+	std::string msgx = format_string("REG X : %2X", appleplus.cpu.X);
 	DrawText(msgx.c_str(), 10, 45, 20, WHITE);
 
-	std::string msgy = format_string("REG Y : %2X", cpu.Y);
+	std::string msgy = format_string("REG Y : %2X", appleplus.cpu.Y);
 	DrawText(msgy.c_str(), 10, 65, 20, WHITE);
 
-	std::string msgpc = format_string("PC : %4X", cpu.PC);
+	std::string msgpc = format_string("PC : %4X", appleplus.cpu.PC);
 	DrawText(msgpc.c_str(), 10, 85, 20, WHITE);
 
-	std::string msgsp = format_string("SP : %2X", cpu.SP);
+	std::string msgsp = format_string("SP : %2X", appleplus.cpu.SP);
 	DrawText(msgsp.c_str(), 10, 105, 20, WHITE);
 }
 
@@ -72,78 +72,113 @@ void DrawRegistor()
 void DrawFlags()
 {
 	// FLAG
-	std::string flagc = format_string("0 : FLAG C : %2X", cpu.Flag.C);
+	std::string flagc = format_string("0 : FLAG C : %2X", appleplus.cpu.Flag.C);
 	DrawText(flagc.c_str(), 10, 130, 20, MAGENTA);
 
-	std::string flagz = format_string("1 : FLAG Z : %2X", cpu.Flag.Z);
+	std::string flagz = format_string("1 : FLAG Z : %2X", appleplus.cpu.Flag.Z);
 	DrawText(flagz.c_str(), 10, 150, 20, MAGENTA);
 
-	std::string flagi = format_string("2 : FLAG I : %2X", cpu.Flag.I);
+	std::string flagi = format_string("2 : FLAG I : %2X", appleplus.cpu.Flag.I);
 	DrawText(flagi.c_str(), 10, 170, 20, MAGENTA);
 
-	std::string flagd = format_string("3 : FLAG D : %2X", cpu.Flag.D);
+	std::string flagd = format_string("3 : FLAG D : %2X", appleplus.cpu.Flag.D);
 	DrawText(flagd.c_str(), 10, 190, 20, MAGENTA);
 
-	std::string flagb = format_string("4 : FLAG B : %2X", cpu.Flag.B);
+	std::string flagb = format_string("4 : FLAG B : %2X", appleplus.cpu.Flag.B);
 	DrawText(flagb.c_str(), 10, 210, 20, MAGENTA);
 
-	std::string flagu = format_string("5 : FLAG U : %2X", cpu.Flag.Unused);
+	std::string flagu = format_string("5 : FLAG U : %2X", appleplus.cpu.Flag.Unused);
 	DrawText(flagu.c_str(), 10, 230, 20, MAGENTA);
 
-	std::string flagv = format_string("6 : FLAG V : %2X", cpu.Flag.V);
+	std::string flagv = format_string("6 : FLAG V : %2X", appleplus.cpu.Flag.V);
 	DrawText(flagv.c_str(), 10, 250, 20, MAGENTA);
 
-	std::string flagn = format_string("7 : FLAG N : %2X", cpu.Flag.N);
+	std::string flagn = format_string("7 : FLAG N : %2X", appleplus.cpu.Flag.N);
 	DrawText(flagn.c_str(), 10, 270, 20, MAGENTA);
 }
 
 void DrawZeroPage()
 {
-	int xpos = 300;
-	int ypos = 10;
+	int xpos = 10;
+	int ypos = 600;
 
 	for (int y = 0; y < 16; y++)
 		for (int x = 0; x < 16; x++)
 		{
-			int v = mem[y*8 + x];
+			int v = appleplus.mem.ReadByte(y*8 + x);
 			std::string msg = format_string("%2X", v);
-			DrawText(msg.c_str(), xpos + (x * 35), ypos+(y*35), 20, WHITE);
+			DrawText(msg.c_str(), xpos + (x * 25), ypos+(y * 25), 20, WHITE);
 		}
 }
 
+std::list<BYTE> opcodestack;
+constexpr int maxopcode = 30;
+void DrawInstruction()
+{
+	if (opcodestack.size() >= maxopcode)
+		opcodestack.pop_front();
+
+	opcodestack.push_back(appleplus.cpu.lastInst);
+	
+	std::list<BYTE>::iterator iter;
+	int i = 0;
+	for (iter = opcodestack.begin(); iter != opcodestack.end(); iter++, i++) 
+	{
+		DrawText(appleplus.cpu.GetInstName(*iter).c_str(), 10, 330 + (i * 20), 20, GREEN);
+	}
+}
+
+void TestDrawBox()
+{
+	Color color;
+	color.r = 0;
+	color.g = 255;
+	color.b = 255;
+	color.a = 255;
+	for (int y = 0; y < 100; y++)
+	for(int x = 0; x < 100; x++)
+	DrawPixel(x, y, color);
+}
 
 int main(void)
 {
-	cpu.Reset();
-	mem.Create();
-	UpLoadProgram();
+	appleplus.InitDevice();
+	appleplus.UploadRom();
 
+	//UpLoadProgram();
 
 	const int windowWidth = 1280;
 	const int windowHeight = 1024;
 
 	SetConfigFlags(FLAG_WINDOW_RESIZABLE /*| FLAG_VSYNC_HINT*/);
-	InitWindow(windowWidth, windowHeight, "6502 CPU Emulator");
+	InitWindow(windowWidth, windowHeight, "APPLE II Plus Emulator");
 	SetWindowMinSize(320, 240);
 
 	int gameScreenWidth = 1280;
 	int gameScreenHeight = 1024;
 
-	//SetTargetFPS(160);
-
 	while (!WindowShouldClose())
 	{
+		int fps = GetFPS();
+		long long p = (long long)(1023000.0 / fps);
+		appleplus.cpu.Run(appleplus.mem, (int)p);
+		appleplus.SoftSwitch();
+
 		BeginDrawing();
 		ClearBackground(BLACK);
 
-		cpu.Run(mem, 1);
+// 		int fps = GetFPS();
+// 		std::string f = format_string("FPS : %d", fps);
+// 		DrawText(f.c_str(), 10,630, 20, MAGENTA);
 
 		DrawRegistor();
 		DrawFlags();
 		DrawZeroPage();
+		//DrawInstruction();
 
-		std::string inst = format_string("INSTRUCTION : 0x%2X", cpu.lastInst);
-		DrawText(inst.c_str(), 10, 330, 20, GREEN);
+		//TestDrawBox();
+
+		appleplus.Render();
 
 		EndDrawing();
 	}
