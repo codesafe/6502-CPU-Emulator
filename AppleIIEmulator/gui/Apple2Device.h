@@ -7,7 +7,9 @@
 #define RAMSIZE			0xC000
 #define ROMSIZE			0x3000
 #define ROMSTART		0xD000
-#define TARGET_FRAME	30
+
+#define SL6START		0xC600
+#define SL6SIZE			0x00FF
 
 class CPU;	// 6502 cpu
 class Memory;
@@ -32,11 +34,10 @@ struct drive
 	WORD nibble;
 };
 
-
+// apple2의 cpu / memory제외한 device
 class Apple2Device
 {
 public:
-
 	// Current Drive - only one can be enabled at a time
 	int	currentDrive;
 	// $C050 CLRTEXT / $C051 SETTEXT
@@ -49,30 +50,41 @@ public:
 	bool hires_Mode;
 	// $C000, $C010 ascii value of keyboard input
 	BYTE keyboard;
-
 	// can be $400, $800, $2000 or $4000
 	WORD videoAddress;
 
-public:
-	CPU cpu;
-	Memory mem;
-	AppleFont font;
+
+	// Language Card writable
+	bool LCWR;
+	// Language Card readable
+	bool LCRD;
+	// Language Card bank 2 enabled
+	bool LCBK2; 
+	// Language Card pre-write flip flop
+	bool LCWFF; 
+
 
 private:
-	BYTE ExecSoftSwitch(WORD address, BYTE value, bool WRT);
+	AppleFont font;
+	drive disk[2];
+
+	// DISK2
+	int insertFloppy(const char* filename, int drv);
+	void stepMotor(WORD address);
+	void setDrv(int drv);
 
 public:
 	Apple2Device();
 	~Apple2Device();
 
-	void InitDevice();
-	bool UploadRom();
+	void Create();
+	BYTE SoftSwitch(WORD address, BYTE value, bool WRT);
+	void PlaySound();
+	void Render(Memory& mem, int frame);
 
-	void SoftSwitch();
-
-	void playSound();
-	void Render(int frame);
-
+	void UpdateKeyBoard();
+	bool UpdateFloppyDisk();
+	void InsetFloppy();
 };
 
 

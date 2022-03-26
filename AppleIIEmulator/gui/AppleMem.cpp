@@ -8,6 +8,7 @@
 Memory::Memory()
 {
 	memory = NULL;
+	device = NULL;
 }
 
 Memory::~Memory()

@@ -3,14 +3,14 @@
 #include "AppleCPU.h"
 #include "AppleMem.h"
 
-#include "apple2device.h"
+#include "Apple2Machine.h"
 #include "raylib.h"
 
 #include <string>
 #include <format>
 #include <list>
 
-Apple2Device appleplus;
+Apple2Machine appleplus;
 
 std::string format_string(const std::string fmt, ...) 
 {
@@ -34,21 +34,6 @@ std::string format_string(const std::string fmt, ...)
 	return buffer;
 }
 
-
-void UpLoadProgram()
-{
-	constexpr int codesize = 65526;
-	BYTE* buffer = new BYTE[codesize];
-
-	FILE* fp;
-	fopen_s(&fp, "6502_functional_test.bin", "rb");
-	fread(buffer, 1, codesize, fp);
-	fclose(fp);
-
-	appleplus.mem.UpLoadProgram(0x000A, buffer, codesize);
-	delete[] buffer;
-	appleplus.cpu.PC = 0x400;
-}
 
 void DrawRegistor()
 {
@@ -142,10 +127,7 @@ void TestDrawBox()
 
 int main(void)
 {
-	appleplus.InitDevice();
-	appleplus.UploadRom();
-
-	//UpLoadProgram();
+	appleplus.InitMachine();
 
 	const int windowWidth = 1280;
 	const int windowHeight = 1024;
@@ -166,8 +148,7 @@ int main(void)
 		long long p = (long long)(1023000.0 / fps);	// 1.023MHz
 
 		//long long p = 100;
-		appleplus.cpu.Run(appleplus.mem, (int)p);
-		appleplus.SoftSwitch();
+		appleplus.Run((int)p);
 
 		BeginDrawing();
 		ClearBackground(BLACK);

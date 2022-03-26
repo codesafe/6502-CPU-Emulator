@@ -8,76 +8,12 @@
 #include "raylib.h"
 
 
-drive disk[2] = { 0 };
-
-Apple2Device::Apple2Device()
-{
-}
-
-Apple2Device::~Apple2Device()
-{
-	mem.Destroy();
-}
-
-void Apple2Device::InitDevice()
-{
-	mem.Create();
-	font.Create();
-
-	currentDrive = 0;
-	textMode = true;
-	mixedMode = false;
-	videoPage = 1;
-	hires_Mode = false;
-	keyboard = 0;
-	videoAddress = videoPage * 0x0400;
-}
-
-bool Apple2Device::UploadRom()
-{
-	bool ret = false;
-	BYTE* rom = new BYTE[ROMSIZE];
-	FILE* fp = fopen("rom/appleII+.rom", "rb"); // load the Apple II+ ROM
-	if (fp) 
-	{
-		fread(rom, ROMSIZE, 1, fp);
-		mem.UpLoadProgram(ROMSTART, rom, ROMSIZE);
-		fclose(fp);
-		ret = true;
-	}
-	delete[] rom;
-
-	cpu.Reset(mem);
-	return ret;
-}
-
-// 소프트 스위칭
-void Apple2Device::SoftSwitch()
-{
-	if (mem.softswitch.switched)
-	{
-		WORD address = mem.softswitch.address;
-		BYTE value = mem.softswitch.value;
-		bool WRT = mem.softswitch.readorwrite;
-
-		ExecSoftSwitch(address, value, WRT);
-	}
-
-}
-
-// Language Card writable
-bool    LCWR = true;                                                           
-// Language Card readable
-bool LCRD = false;                                                          
-bool LCBK2 = true; // Language Card bank 2 enabled
-bool LCWFF = false; // Language Card pre-write flip flop
-
 BYTE PB0 = 0; // $C061 Push Button 0 (bit 7) / Open Apple
 BYTE PB1 = 0; // $C062 Push Button 1 (bit 7) / Solid Apple
 BYTE PB2 = 0; // $C063 Push Button 2 (bit 7) / shift mod !!!
 
 // GC Position ranging from 0 (left) to 255 right
-float GCP[2] = { 127, 127 };                                                      
+float GCP[2] = { 127, 127 };
 // $C064 (GC0) and $C065 (GC1) Countdowns
 float GCC[2] = { 0 };
 // GC0 and GC1 Directions (left/down or right/up)
@@ -91,7 +27,41 @@ BYTE GCReleaseSpeed = 8;
 // $C070 the tick at which the GCs were reseted
 long long int GCCrigger;
 
-BYTE Apple2Device::ExecSoftSwitch(WORD address, BYTE value, bool WRT)
+
+Apple2Device::Apple2Device()
+{
+}
+
+Apple2Device::~Apple2Device()
+{
+	//mem.Destroy();
+}
+
+void Apple2Device::Create()
+{
+	font.Create();
+
+	currentDrive = 0;
+
+	textMode = true;
+	mixedMode = false;
+	videoPage = 1;
+	hires_Mode = false;
+	keyboard = 0;
+	videoAddress = videoPage * 0x0400;
+
+	// Language Card writable
+	LCWR = true;
+	// Language Card readable
+	LCRD = false;
+	// Language Card bank 2 enabled
+	LCBK2 = true;
+	// Language Card pre-write flip flop
+	LCWFF = false;
+}
+
+
+BYTE Apple2Device::SoftSwitch(WORD address, BYTE value, bool WRT)
 {
 	// disk ][ I/O register
 	static BYTE dLatch = 0;
@@ -109,10 +79,11 @@ BYTE Apple2Device::ExecSoftSwitch(WORD address, BYTE value, bool WRT)
 		case 0xC020: // TAPEOUT (shall we listen it ? - try SAVE from applesoft)
 		case 0xC030: // SPEAKER
 		case 0xC033: 
-			playSound(); 
+			PlaySound(); 
 			break; // apple invader uses $C033 to output sound !
 
-		// Graphics
+		///////////////////////////////////////////////////////////////////////////////// Graphics
+
 		case 0xC050: 
 			textMode = false; 
 			break;
@@ -148,24 +119,49 @@ BYTE Apple2Device::ExecSoftSwitch(WORD address, BYTE value, bool WRT)
 			hires_Mode = true;  
 			break;
 
-		case 0xC061: return(PB0);                                                   // Push Button 0
-		case 0xC062: return(PB1);                                                   // Push Button 1
-		case 0xC063: return(PB2);                                                   // Push Button 2
+		/////////////////////////////////////////////////////////////////////////////////	Joy Paddle ?
+
+// 		case 0xC061: return(PB0);                                                   // Push Button 0
+// 		case 0xC062: return(PB1);                                                   // Push Button 1
+// 		case 0xC063: return(PB2);                                                   // Push Button 2
 // 		case 0xC064: return(readPaddle(0));                                         // Paddle 0
 // 		case 0xC065: return(readPaddle(1));                                         // Paddle 1
 // 		case 0xC066: return(readPaddle(0));                                         // Paddle 2 -- not implemented
 // 		case 0xC067: return(readPaddle(1));                                         // Paddle 3 -- not implemented
-
 //		case 0xC070: resetPaddles(); break;                                         // paddle timer RST
 
-//		case 0xC0E0 ... 0xC0E7: stepMotor(address); break;                          // MOVE DRIVE HEAD
+		/////////////////////////////////////////////////////////////////////////////////	DISK 2
 
-// 		case 0xCFFF:
-// 		case 0xC0E8: disk[curDrv].motorOn = false; break;                           // MOTOROFF
-// 		case 0xC0E9: disk[curDrv].motorOn = true;  break;                           // MOTORON
-// 
-// 		case 0xC0EA: setDrv(0); break;                                              // DRIVE0EN
-// 		case 0xC0EB: setDrv(1); break;                                              // DRIVE1EN
+		case 0xC0E0:
+		case 0xC0E1:
+		case 0xC0E2:
+		case 0xC0E3:
+		case 0xC0E4:
+		case 0xC0E5:
+		case 0xC0E6:
+		case 0xC0E7: stepMotor(address); break;                                     // MOVE DRIVE HEAD
+
+		// MOTOR OFF
+		case 0xCFFF:
+		case 0xC0E8: 
+			disk[currentDrive].motorOn = false; 
+			printf("--> DISK MOTOR OFF\n");
+			break;
+
+		// MOTOR ON
+		case 0xC0E9: 
+			disk[currentDrive].motorOn = true;  
+			printf("--> DISK MOTOR ON\n");
+			break;
+
+		// DRIVE 0
+		case 0xC0EA: 
+			setDrv(0); 
+			break;
+		// DRIVE 1
+		case 0xC0EB: 
+			setDrv(1); 
+			break;
 
 		// Shift Data Latch
 		case 0xC0EC:                                                                
@@ -184,51 +180,48 @@ BYTE Apple2Device::ExecSoftSwitch(WORD address, BYTE value, bool WRT)
 		}
 		return(dLatch);
 
-		case 0xC0ED: dLatch = value; break;                                         // Load Data Latch
+		// Load Data Latch
+		case 0xC0ED: 
+			dLatch = value; 
+			break;
 
 		// latch for READ
 		case 0xC0EE:
 			disk[currentDrive].writeMode = false;
 			return(disk[currentDrive].readOnly ? 0x80 : 0);                                 // check protection
+
 		// latch for WRITE
 		case 0xC0EF: 
 			disk[currentDrive].writeMode = true; 
 			break;
 
-		// LANGUAGE CARD :
-		// LC2RD
-		case 0xC080:                                                                
-		case 0xC084: 
-			LCBK2 = 1; LCRD = 1; LCWR = 0;    LCWFF = 0;    
-			break;
-		// LC2WR		
+		///////////////////////////////////////////////////////////////////////////////// LANGUAGE CARD
+
+		case 0xC080:                                                                // LANGUAGE CARD :
+		case 0xC084: LCBK2 = 1; LCRD = 1; LCWR = 0;      LCWFF = 0;    break;       // LC2RD
 		case 0xC081:
-		case 0xC085: 
-			LCBK2 = 1; LCRD = 0; LCWR |= LCWFF; LCWFF = !WRT; 
-			break;
-		// ROMONLY2		
+		case 0xC085: LCBK2 = 1; LCRD = 0; LCWR |= LCWFF; LCWFF = !WRT; break;       // LC2WR
 		case 0xC082:
-		case 0xC086: 
-			LCBK2 = 1; LCRD = 0; LCWR = 0;    LCWFF = 0;    
-			break;
-
+		case 0xC086: LCBK2 = 1; LCRD = 0; LCWR = 0;      LCWFF = 0;    break;       // ROMONLY2
 		case 0xC083:
-		case 0xC087: LCBK2 = 1; LCRD = 1; LCWR |= LCWFF; LCWFF = !WRT; break;         // LC2RW
+		case 0xC087: LCBK2 = 1; LCRD = 1; LCWR |= LCWFF; LCWFF = !WRT; break;       // LC2RW
 		case 0xC088:
-		case 0xC08C: LCBK2 = 0; LCRD = 1; LCWR = 0;    LCWFF = 0;    break;         // LC1RD
+		case 0xC08C: LCBK2 = 0; LCRD = 1; LCWR = 0;      LCWFF = 0;    break;       // LC1RD
 		case 0xC089:
-		case 0xC08D: LCBK2 = 0; LCRD = 0; LCWR |= LCWFF; LCWFF = !WRT; break;         // LC1WR
+		case 0xC08D: LCBK2 = 0; LCRD = 0; LCWR |= LCWFF; LCWFF = !WRT; break;       // LC1WR
 		case 0xC08A:
-		case 0xC08E: LCBK2 = 0; LCRD = 0; LCWR = 0;    LCWFF = 0;    break;         // ROMONLY1
+		case 0xC08E: LCBK2 = 0; LCRD = 0; LCWR = 0;      LCWFF = 0;    break;       // ROMONLY1
 		case 0xC08B:
-		case 0xC08F: LCBK2 = 0; LCRD = 1; LCWR |= LCWFF; LCWFF = !WRT; break;         // LC1RW
+		case 0xC08F: LCBK2 = 0; LCRD = 1; LCWR |= LCWFF; LCWFF = !WRT; break;       // LC1RW
 	}
-
-	return 0;//(ticks % 256);                                                            // catch all
+	static int ticks = 0;
+	ticks++;
+	return (ticks % 256);
 }
 
 
-void Apple2Device::playSound()
+
+void Apple2Device::PlaySound()
 {
 	static long long int lastTick = 0LL;
 	static bool SPKR = false;                                                     // $C030 Speaker toggle
@@ -251,7 +244,7 @@ const int offsetGR[24] = {                                                    //
 int textPosx = 300;
 int textPosy = 50;
 
-void Apple2Device::Render(int frame)
+void Apple2Device::Render(Memory &mem, int frame)
 {
 	int maxcolumn = 40;
 	int maxline = 24;
@@ -271,7 +264,7 @@ void Apple2Device::Render(int frame)
 			for (int line = linelimit; line < maxline; line++)
 			{
 				// read video memory
-				BYTE glyph = mem.GetByte(videoAddress + offsetGR[line] + col);
+				BYTE glyph = mem.ReadByte(videoAddress + offsetGR[line] + col);
 
 				int fontattr = 0;
 				if (glyph > 0x7F)
@@ -312,5 +305,161 @@ void Apple2Device::Render(int frame)
 	}
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// Apple Disk II 
+
+int Apple2Device::insertFloppy(const char* filename, int drv)
+{
+	FILE* f = fopen(filename, "rb");                                              // open file in read binary mode
+	if (!f || fread(disk[drv].data, 1, 232960, f) != 232960)                      // load it into memory and check size
+		return(0);
+	fclose(f);
+
+	sprintf(disk[drv].filename, "%s", filename);                                   // update disk filename record
+
+// 	f = fopen(filename, "ab");                                                    // try to open the file in append binary mode
+// 	if (!f) {                                                                      // success, file is writable
+// 		disk[drv].readOnly = true;                                                  // update the readOnly flag
+// 		fclose(f);                                                                  // and close it untouched
+// 	}
+// 	else disk[drv].readOnly = false;                                              // f is NULL, no writable, no need to close it
+
+	return(1);
+}
 
 
+void Apple2Device::stepMotor(WORD address)
+{
+	static bool phases[2][4] = { 0 };                                             // phases states (for both drives)
+	static bool phasesB[2][4] = { 0 };                                             // phases states Before
+	static bool phasesBB[2][4] = { 0 };                                             // phases states Before Before
+	static int pIdx[2] = { 0 };                                             // phase index (for both drives)
+	static int pIdxB[2] = { 0 };                                             // phase index Before
+	static int halfTrackPos[2] = { 0 };
+
+	address &= 7;
+	int phase = address >> 1;
+
+	phasesBB[currentDrive][pIdxB[currentDrive]] = phasesB[currentDrive][pIdxB[currentDrive]];
+	phasesB[currentDrive][pIdx[currentDrive]] = phases[currentDrive][pIdx[currentDrive]];
+	pIdxB[currentDrive] = pIdx[currentDrive];
+	pIdx[currentDrive] = phase;
+
+	if (!(address & 1)) {                                                          // head not moving (PHASE x OFF)
+		phases[currentDrive][phase] = false;
+		return;
+	}
+
+	if ((phasesBB[currentDrive][(phase + 1) & 3]) && (--halfTrackPos[currentDrive] < 0))      // head is moving in
+		halfTrackPos[currentDrive] = 0;
+
+	if ((phasesBB[currentDrive][(phase - 1) & 3]) && (++halfTrackPos[currentDrive] > 140))    // head is moving out
+		halfTrackPos[currentDrive] = 140;
+
+	phases[currentDrive][phase] = true;                                                 // update track#
+	disk[currentDrive].track = (halfTrackPos[currentDrive] + 1) / 2;
+	disk[currentDrive].nibble = 0;                                                      // not sure this is necessary ?
+}
+
+void Apple2Device::setDrv(int drv)
+{
+	disk[drv].motorOn = disk[!drv].motorOn || disk[drv].motorOn;                  // if any of the motors were ON
+	disk[!drv].motorOn = false;                                                   // motor of the other drive is set to OFF
+	currentDrive = drv;                                                                 // set the current drive
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////// 키보드
+
+void Apple2Device::UpdateKeyBoard()
+{
+	int key = GetKeyPressed();
+	bool shift = IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT);
+
+	switch (key)
+	{
+		case KEY_A:            keyboard = 0xC1;   break;
+		case KEY_B:            keyboard = 0xC2;   break;
+		case KEY_C:            keyboard = 0xC3;   break;
+		case KEY_D:            keyboard = 0xC4;   break;
+		case KEY_E:            keyboard = 0xC5;   break;
+		case KEY_F:            keyboard = 0xC6;   break;
+		case KEY_G:            keyboard = 0xC7;   break;
+		case KEY_H:            keyboard = 0xC8;   break;
+		case KEY_I:            keyboard = 0xC9;   break;
+		case KEY_J:            keyboard = 0xCA;   break;
+		case KEY_K:            keyboard = 0xCB;   break;
+		case KEY_L:            keyboard = 0xCC;   break;
+		case KEY_M:            keyboard = 0xCD;   break;
+		case KEY_N:            keyboard = 0xCE;   break;
+		case KEY_O:            keyboard = 0xCF;   break;
+		case KEY_P:            keyboard = 0xD0;   break;
+		case KEY_Q:            keyboard = 0xD1;   break;
+		case KEY_R:            keyboard = 0xD2;   break;
+		case KEY_S:            keyboard = 0xD3;   break;
+		case KEY_T:            keyboard = 0xD4;   break;
+		case KEY_U:            keyboard = 0xD5;   break;
+		case KEY_V:            keyboard = 0xD6;   break;
+		case KEY_W:            keyboard = 0xD7;   break;
+		case KEY_X:            keyboard = 0xD8;   break;
+		case KEY_Y:            keyboard = 0xD9;   break;
+		case KEY_Z:            keyboard = 0xDA;   break;
+
+		case KEY_ZERO:			keyboard = shift ? 0xA9 : 0xB0; break;             // 0 )
+		case KEY_ONE:			keyboard = shift ? 0xA1 : 0xB1; break;             // 1 !
+		case KEY_TWO:			keyboard = shift ? 0xC0 : 0xB2; break;             // 2 @
+		case KEY_THREE:         keyboard = shift ? 0xA3 : 0xB3; break;             // 3 #
+		case KEY_FOUR:			keyboard = shift ? 0xA4 : 0xB4; break;             // 4 $
+		case KEY_FIVE:			keyboard = shift ? 0xA5 : 0xB5; break;             // 5 %
+		case KEY_SIX:			keyboard = shift ? 0xDE : 0xB6; break;             // 6 ^
+		case KEY_SEVEN:         keyboard = shift ? 0xA6 : 0xB7; break;             // 7 &
+		case KEY_EIGHT:         keyboard = shift ? 0xAA : 0xB8; break;             // 8 *
+		case KEY_NINE:			keyboard = shift ? 0xA8 : 0xB9; break;             // 9 (
+
+
+		case KEY_LEFT_BRACKET:	keyboard = shift ? 0x9B : 0xDB;   break;   // [ {
+		case KEY_BACKSLASH:		keyboard = shift ? 0x9C : 0xDC;   break;   // \ |
+		case KEY_RIGHT_BRACKET:	keyboard = shift ? 0x9D : 0xDD;   break;   // ] }
+
+		case KEY_APOSTROPHE:    keyboard = shift ? 0xA2 : 0xA7;   break;   // ' "
+		case KEY_COMMA:			keyboard = shift ? 0xBC : 0xAC;   break;   // , <
+		case KEY_PERIOD:		keyboard = shift ? 0xBE : 0xAE;   break;   // . >
+
+		case KEY_MINUS:			keyboard = shift ? 0xDF : 0xAD;   break;	// - _
+		case KEY_SLASH:			keyboard = shift ? 0xBF : 0xAF;   break;	// / ?
+		case KEY_SEMICOLON :	keyboard = shift ? 0xBA : 0xBB;   break;	// ; :
+		case KEY_EQUAL:			keyboard = shift ? 0xAB : 0xBD;   break;	// = +
+
+		case KEY_BACKSPACE:		keyboard = 0x88;	break;             // BS
+ 		case KEY_LEFT:			keyboard = 0x88;    break;             // BS
+ 		case KEY_RIGHT:			keyboard = 0x95;    break;             // NAK
+		case KEY_SPACE:			keyboard = 0xA0;    break;
+		case KEY_ESCAPE:		keyboard = 0x9B;    break;             // ESC
+		case KEY_ENTER:			keyboard = 0x8D;    break;             // CR
+	}
+
+// 	if (key != 0)
+// 	{
+// 		printf("KEY : %x --> %x\n", key, keyboard);
+// 	}
+
+}
+
+BYTE tries = 0;
+// 플로피 디스크 업데이트
+bool Apple2Device::UpdateFloppyDisk()
+{
+	// until motor is off or i reaches 255+1=0
+	return disk[currentDrive].motorOn && ++tries;
+}
+
+
+void Apple2Device::InsetFloppy()
+{
+	memset(&disk[0], 0, sizeof(drive));
+	memset(&disk[1], 0, sizeof(drive));
+
+	//insertFloppy("rom/DOS3.3.nib", 0);
+	insertFloppy("rom/LodeRunner.nib", 0);
+	
+}

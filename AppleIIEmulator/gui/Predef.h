@@ -12,7 +12,8 @@
 #define SBYTE		signed char
 #define BYTE		unsigned char
 #define WORD		unsigned short
-#define MEMORY_SIZE	1024 * 64	// 64k
+#define MEMORY_SIZE		1024 * 64	// 64k
+#define TARGET_FRAME	30
 
 
 #endif

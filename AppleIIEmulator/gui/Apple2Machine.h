@@ -1,0 +1,30 @@
+#ifndef APPLE2_MACHINE_H
+#define APPLE2_MACHINE_H
+
+#include <stdio.h>
+#include "AppleCpu.h"
+#include "AppleMem.h"
+#include "Apple2Device.h"
+
+class Apple2Machine
+{
+public:
+	CPU cpu;
+	Memory mem;
+	Apple2Device device;
+
+private:
+	bool UploadRom();
+
+public:
+	Apple2Machine();
+	~Apple2Machine();
+
+	void InitMachine();
+	void Run(int cycle);
+	void Render(int frame);
+};
+
+
+
+#endif

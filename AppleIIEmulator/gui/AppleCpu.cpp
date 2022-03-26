@@ -77,8 +77,8 @@ void CPU::Reset(Memory &mem)
 	X = 0;
 	Y = 0;
 	PS = 0;				// processor status (flags)
+	//PS = (PS | FLAG_INTERRUPT_DISABLE) & ~FLAG_DECIMAL_MODE;
 	SP = STACK_POS;	// Stack pointer
-	//PC = PC_START;		// program control
 	// ROM 로드후 정해짐
 	PC = mem.ReadByte(0xFFFC) | (mem.ReadByte(0xFFFD) << 8);
 }
@@ -167,15 +167,15 @@ void CPU::SetOverflow(BYTE oldv0, BYTE v0, BYTE v1)
 
 BYTE CPU::Fetch(Memory& mem, int &cycle)
 {
-	BYTE c = mem.GetByte(PC++);
+	BYTE c = mem.ReadByte(PC++);
 	cycle--;
 	return c;
 }
 
 WORD CPU::FetchWord(Memory& mem, int& cycle)
 {
-	BYTE c0 = mem.GetByte(PC++);
-	BYTE c1 = mem.GetByte(PC++);
+	BYTE c0 = mem.ReadByte(PC++);
+	BYTE c1 = mem.ReadByte(PC++);
 
 	// 엔디안에 따라 c0 <--> c1해야 할수도 있다
 	WORD w = (c1 << 8) | c0;
@@ -186,7 +186,7 @@ WORD CPU::FetchWord(Memory& mem, int& cycle)
 // 메모리에서 읽는데 cycle소모 x / PC무관 할때 (Zero page같은것)
 BYTE CPU::ReadByte(Memory& mem, WORD addr, int& cycle)
 {
-	BYTE c = mem.GetByte(addr);
+	BYTE c = mem.ReadByte(addr);
 	cycle--;
 	return c;
 }
@@ -200,7 +200,7 @@ WORD CPU::ReadWord(Memory& mem, WORD addr, int& cycle)
 
 void CPU::WriteByte(Memory& mem, BYTE value, int addr, int& cycle)
 {
-	mem.SetByte(addr, value);
+	mem.WriteByte(addr, value);
 	cycle --;
 }
 
@@ -1675,6 +1675,7 @@ int CPU::Run(Memory &mem, int cycle)
 			// PC에로드되고 상태의 중단 플래그가 1로 설정됩니다.
 			case BRK :	// 7 cycle
 			{
+#if 0 // old
 				// PC Push
 				// BRK는 PC를 +1하지 않고 +2한다고 함. 그래서 PC+1 push
 				// https://www.c64-wiki.com/wiki/BRK
@@ -1688,6 +1689,16 @@ int CPU::Run(Memory &mem, int cycle)
 				PC = interruptVector;
 				Flag.B = 1;
 				Flag.I = 1;
+#else
+				PushStackByte(mem, ((++PC) >> 8) & 0xFF, cycle);
+				PushStackByte(mem, PC & 0xFF, cycle);
+				PushStackByte(mem, Flag.B, cycle);
+				Flag.I = 1;
+
+				WORD interruptVector = ReadWord(mem, 0xFFFE, cycle);
+				PC = interruptVector;
+#endif
+				printf("BREAK!! : %x\n", PC);
 			}
 			break;
 
@@ -1849,6 +1860,7 @@ WORD CPU::addr_mode_INDY(Memory& mem, int& cycle)
 
 void CPU::Execute_ADC(BYTE v)
 {
+#if 0 // old
 	BYTE oldA = A;
 	WORD Result = A + v + Flag.C;
 	A = (Result & 0xFF);
@@ -1856,22 +1868,51 @@ void CPU::Execute_ADC(BYTE v)
 	SetZeroNegative(A);
 	SetCarryFlag(Result);
  	SetOverflow(oldA, A, v);
+#else
+	WORD result = A + v + Flag.C;
+	SetZeroNegative(result & 0xFF);
+
+	if (((result) ^ (A)) & ((result) ^ (v)) & 0x0080) 
+		Flag.V = 1;
+	else 
+		Flag.V = 0;
+
+	if (Flag.D) 
+		result += ((((result + 0x66) ^ A ^ v) >> 3) & 0x22) * 3;
+
+	if (result & 0xFF00) 
+		Flag.C = 1;
+	else 
+		Flag.C = 0;
+	A = (result & 0xFF);
+#endif
 }
 
 void CPU::Execute_SBC(BYTE v)
 {
-	// This instruction subtracts the contents of a memory location to the accumulator 
-	// together with the not of the carry bit.If overflow occurs the carry bit is clear, 
-	// this enables multiple byte subtraction to be performed.
-// 	BYTE oldA = A;
-// 	WORD Result = A - v - (1-Flag.C);
-// 	A = (Result & 0xFF);
-// 
-// 	SetZeroNegative(A);
-// 	SetCarryFlagNegative(Result);
-// 	SetOverflow(oldA, A, v);
+	// old
+	//Execute_ADC(~v);
 
-	Execute_ADC(~v);
+	v ^= 0xFF;
+	if (Flag.D) 
+		v -= 0x0066;
+
+	WORD result = A + v + Flag.C;
+	SetZeroNegative(result & 0xFF);
+
+	if (((result) ^ (A)) & ((result) ^ (v)) & 0x0080) 
+		Flag.V = 1;
+	else
+		Flag.V = 0;
+
+	if (Flag.D)
+		result += ((((result + 0x66) ^ A ^ v) >> 3) & 0x22) * 3;
+
+	if (result & 0xFF00) 
+		Flag.C = 1;
+	else 
+		Flag.C = 0;
+	A = (result & 0xFF);
 }
 
 void CPU::Execute_CMP(BYTE v)

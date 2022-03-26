@@ -2,7 +2,9 @@
 #define MEMORY_H
 
 #include "Predef.h"
+#include "Apple2Device.h"
 
+/*
 struct SoftSwitch
 {
 	bool switched;
@@ -26,12 +28,14 @@ struct SoftSwitch
 		readorwrite = rw;
 	}
 };
+*/
+
 
 class Memory
 {
 	public:
 		BYTE* memory;
-		SoftSwitch softswitch;
+		Apple2Device* device;
 
 	public:
 		Memory();
@@ -39,14 +43,6 @@ class Memory
 
 		void Create();
 		void Destroy();
-
-		void CheckSoftSwitch(int addr, BYTE v, bool rw)
-		{
-			softswitch.Reset();
-
-			if (addr == 0xCFFF || ((addr & 0xFF00) == 0xC000))
-				softswitch.SetSwitch(addr, v, rw);
-		}
 
 // 		BYTE operator [] (int addr) const
 // 		{
@@ -58,36 +54,38 @@ class Memory
 // 			return memory[addr];
 // 		}
 
-		BYTE GetByte(int addr)
+		BYTE ReadByte(int addr)
 		{
 			BYTE v = memory[addr];
-			CheckSoftSwitch(addr, v, false);
+			if (addr == 0xCFFF || ((addr & 0xFF00) == 0xC000))
+				v = device->SoftSwitch(addr, v, false);
 			return v;
 		}
 
-		void SetByte(int addr, BYTE value)
+		void WriteByte(int addr, BYTE value)
 		{
 			memory[addr] = value;
-			CheckSoftSwitch(addr, value, true);
+			if (addr == 0xCFFF || ((addr & 0xFF00) == 0xC000))
+				device->SoftSwitch(addr, value, true);
 		}
 
-		BYTE ReadByte(int addr)
-		{
-			return memory[addr];
-		}
+// 		BYTE ReadByte(int addr)
+// 		{
+// 			return memory[addr];
+// 		}
 
 		WORD ReadWord(int addr)
 		{
-			BYTE m0 = memory[addr];
-			BYTE m1 = memory[addr+1];
+			BYTE m0 = ReadByte(addr);
+			BYTE m1 = ReadByte(addr+1);
 			WORD w = (m1 << 8) | m0;
 			return w;
 		}
 
 		void WriteWord(WORD value, int addr)
 		{
-			memory[addr] = value >> 8;
-			memory[addr+1] = value & 0xFF;
+			WriteByte(addr,value >> 8);
+			WriteByte(addr+1, value & 0xFF);
 		}
 
 		WORD UpLoadProgram(BYTE *code, int codesize);
