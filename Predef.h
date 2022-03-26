@@ -6,6 +6,7 @@
 	MOS 6502 CPU Emulator
 */
 
+#include <stdlib.h>
 #include <stdio.h>
 #include <memory.h>
 

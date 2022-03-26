@@ -4,6 +4,7 @@
 #include "AppleCPU.h"
 #include "AppleMem.h"
 #include "Apple2device.h"
+#include "AppleFont.h"
 #include "raylib.h"
 
 
@@ -21,6 +22,7 @@ Apple2Device::~Apple2Device()
 void Apple2Device::InitDevice()
 {
 	mem.Create();
+	font.Create();
 
 	currentDrive = 0;
 	textMode = true;
@@ -249,7 +251,7 @@ const int offsetGR[24] = {                                                    //
 int textPosx = 300;
 int textPosy = 50;
 
-void Apple2Device::Render()
+void Apple2Device::Render(int frame)
 {
 	int maxcolumn = 40;
 	int maxline = 24;
@@ -270,13 +272,29 @@ void Apple2Device::Render()
 			{
 				// read video memory
 				BYTE glyph = mem.GetByte(videoAddress + offsetGR[line] + col);
-				//printf("%d", glyph);
-				//colorIdx = glyph & 0x0F;                                              // first nibble
-				char ch[2] = { glyph - 0x80 ,0 };
-				DrawText(ch, textPosx + (col * 15), textPosy + (line * 15), 20, GREEN);
+
+				int fontattr = 0;
+				if (glyph > 0x7F)
+					fontattr = FONT_NORMAL;
+				else if (glyph < 0x40) 
+					fontattr = FONT_INVERSE;
+				else 
+					fontattr = FONT_FLASH;
+
+				glyph &= 0x7F; // unset bit 7
+				if (glyph > 0x5F) glyph &= 0x3F; // shifts to match
+				if (glyph < 0x20) glyph |= 0x40; // the ASCII codes
+
+				if (fontattr == FONT_NORMAL || (fontattr == FONT_FLASH && frame < 15))
+				{
+					font.RenderFont(glyph, textPosx + (col * 7), textPosy + (line * 8), false);
+				}
+				else
+				{
+					font.RenderFont(glyph, textPosx + (col * 7), textPosy + (line * 8), true);
+				}
 			}
 		}
-
 	}
 	else
 	{

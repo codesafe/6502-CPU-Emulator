@@ -157,19 +157,23 @@ int main(void)
 	int gameScreenWidth = 1280;
 	int gameScreenHeight = 1024;
 
+	SetTargetFPS(TARGET_FRAME);
+
+	int frame = 0;
 	while (!WindowShouldClose())
 	{
 		int fps = GetFPS();
-		long long p = (long long)(1023000.0 / fps);
+		long long p = (long long)(1023000.0 / fps);	// 1.023MHz
+
+		//long long p = 100;
 		appleplus.cpu.Run(appleplus.mem, (int)p);
 		appleplus.SoftSwitch();
 
 		BeginDrawing();
 		ClearBackground(BLACK);
 
-// 		int fps = GetFPS();
-// 		std::string f = format_string("FPS : %d", fps);
-// 		DrawText(f.c_str(), 10,630, 20, MAGENTA);
+		std::string f = format_string("FPS : %d", fps);
+		DrawText(f.c_str(), 10,300, 20, MAGENTA);
 
 		DrawRegistor();
 		DrawFlags();
@@ -178,9 +182,11 @@ int main(void)
 
 		//TestDrawBox();
 
-		appleplus.Render();
+		appleplus.Render(frame);
 
 		EndDrawing();
+
+		if (frame++ > TARGET_FRAME) frame = 0;
 	}
 
 	CloseWindow();

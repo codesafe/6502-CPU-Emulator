@@ -145,12 +145,14 @@
   <ItemGroup>
     <ClCompile Include="Apple2Device.cpp" />
     <ClCompile Include="AppleCpu.cpp" />
+    <ClCompile Include="AppleFont.cpp" />
     <ClCompile Include="AppleMem.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Apple2Device.h" />
     <ClInclude Include="AppleCpu.h" />
+    <ClInclude Include="AppleFont.h" />
     <ClInclude Include="AppleMem.h" />
     <ClInclude Include="Predef.h" />
   </ItemGroup>

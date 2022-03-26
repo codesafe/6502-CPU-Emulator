@@ -2,10 +2,12 @@
 #define APPLE2_DEVICE_H
 
 #include <stdio.h>
+#include "AppleFont.h"
 
-#define RAMSIZE  0xC000
-#define ROMSIZE  0x3000
-#define ROMSTART 0xD000
+#define RAMSIZE			0xC000
+#define ROMSIZE			0x3000
+#define ROMSTART		0xD000
+#define TARGET_FRAME	30
 
 class CPU;	// 6502 cpu
 class Memory;
@@ -34,6 +36,7 @@ struct drive
 class Apple2Device
 {
 public:
+
 	// Current Drive - only one can be enabled at a time
 	int	currentDrive;
 	// $C050 CLRTEXT / $C051 SETTEXT
@@ -53,6 +56,7 @@ public:
 public:
 	CPU cpu;
 	Memory mem;
+	AppleFont font;
 
 private:
 	BYTE ExecSoftSwitch(WORD address, BYTE value, bool WRT);
@@ -67,7 +71,7 @@ public:
 	void SoftSwitch();
 
 	void playSound();
-	void Render();
+	void Render(int frame);
 
 };
 

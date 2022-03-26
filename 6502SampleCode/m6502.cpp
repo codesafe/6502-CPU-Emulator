@@ -2,6 +2,8 @@
 
 #define ASSERT( Condition, Text ) { if ( !Condition ) { throw -1; } }
 
+unsigned long totalcount = 0;
+
 m6502::s32 m6502::CPU::Execute( s32 Cycles, Mem & memory )
 {
 	/** Load a Register with the value from the memory address */
@@ -156,10 +158,11 @@ m6502::s32 m6502::CPU::Execute( s32 Cycles, Mem & memory )
 		Flag.Unused = false;
 	};
 
+	totalcount++;
 	const s32 CyclesRequested = Cycles;
 	while ( Cycles > 0 )
 	{
-		if (PC == 0x1802)
+		if (PC == 0x336d)
 		{
 			printf("");
 		}
@@ -167,9 +170,9 @@ m6502::s32 m6502::CPU::Execute( s32 Cycles, Mem & memory )
 		Word prevPC = PC;
 		Byte Ins = FetchByte( Cycles, memory );
 
-		printf("A:[%2X] X:[%2X] Y:[%2X] PC:[%4X] ", A, X, Y, prevPC);
-		printf("INST : [%2X] / C:[%d] Z:[%d] I:[%d] D:[%d] B:[%d] U:[%d] V:[%d] N:[%d]\n", Ins, 
-			Flag.C, Flag.Z, Flag.I, Flag.D, Flag.B, Flag.Unused, Flag.V, Flag.N);
+// 		printf("A:[%2X] X:[%2X] Y:[%2X] PC:[%4X] ", A, X, Y, prevPC);
+// 		printf("INST : [%2X] / C:[%d] Z:[%d] I:[%d] D:[%d] B:[%d] U:[%d] V:[%d] N:[%d]\n", Ins, 
+// 			Flag.C, Flag.Z, Flag.I, Flag.D, Flag.B, Flag.Unused, Flag.V, Flag.N);
 
 		switch ( Ins )
 		{
