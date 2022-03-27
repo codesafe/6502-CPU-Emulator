@@ -4,36 +4,35 @@
 #include "Predef.h"
 #include "Apple2Device.h"
 
-/*
-struct SoftSwitch
-{
-	bool switched;
-	WORD address;
-	BYTE value;
-	BYTE readorwrite;	// false : read , true : write
-
-	void Reset()
-	{
-		switched = false;
-		address = 0;
-		value = 0;
-		readorwrite = false;
-	}
-
-	void SetSwitch(WORD addr, BYTE v, bool rw)
-	{
-		switched = true;
-		address = addr;
-		value = v;
-		readorwrite = rw;
-	}
-};
-*/
-
+#define RAMSIZE  0xC000
+#define ROMSTART 0xD000
+#define ROMSIZE  0x3000
+#define LGCSTART 0xD000
+#define LGCSIZE  0x3000
+#define BK2START 0xD000
+#define BK2SIZE  0x1000
+#define SL6START 0xC600
+#define SL6SIZE  0x00FF
 
 class Memory
 {
 	public:
+
+		// Language Card writable
+		bool LCWR;
+		// Language Card readable
+		bool LCRD;
+		// Language Card bank 2 enabled
+		bool LCBK2;
+		// Language Card pre-write flip flop
+		bool LCWFF;
+
+		BYTE ram[RAMSIZE];  // 48K of ram in $000-$BFFF
+		BYTE rom[ROMSIZE];  // 12K of rom in $D000-$FFFF
+		BYTE lgc[LGCSIZE];  // Language Card 12K in $D000-$FFFF
+		BYTE bk2[BK2SIZE];  // bank 2 of Language Card 4K in $D000-$DFFF
+		BYTE sl6[SL6SIZE];  // P5A disk ][ PROM in slot 6
+
 		BYTE* memory;
 		Apple2Device* device;
 
@@ -44,52 +43,15 @@ class Memory
 		void Create();
 		void Destroy();
 
-// 		BYTE operator [] (int addr) const
-// 		{
-// 			return memory[addr];
-// 		}
-// 
-// 		BYTE& operator[] (int addr)
-// 		{
-// 			return memory[addr];
-// 		}
-
-		BYTE ReadByte(int addr)
-		{
-			BYTE v = memory[addr];
-			if (addr == 0xCFFF || ((addr & 0xFF00) == 0xC000))
-				v = device->SoftSwitch(addr, v, false);
-			return v;
-		}
-
-		void WriteByte(int addr, BYTE value)
-		{
-			memory[addr] = value;
-			if (addr == 0xCFFF || ((addr & 0xFF00) == 0xC000))
-				device->SoftSwitch(addr, value, true);
-		}
-
-// 		BYTE ReadByte(int addr)
-// 		{
-// 			return memory[addr];
-// 		}
-
-		WORD ReadWord(int addr)
-		{
-			BYTE m0 = ReadByte(addr);
-			BYTE m1 = ReadByte(addr+1);
-			WORD w = (m1 << 8) | m0;
-			return w;
-		}
-
-		void WriteWord(WORD value, int addr)
-		{
-			WriteByte(addr,value >> 8);
-			WriteByte(addr+1, value & 0xFF);
-		}
+		BYTE ReadByte(int addr);
+		void WriteByte(int addr, BYTE value);
+		WORD ReadWord(int addr);
+		void WriteWord(WORD value, int addr);
 
 		WORD UpLoadProgram(BYTE *code, int codesize);
 		void UpLoadProgram(int startPos, BYTE *code, int codesize);
+
+		void UpLoadToRom(BYTE* code);
 };
 
 

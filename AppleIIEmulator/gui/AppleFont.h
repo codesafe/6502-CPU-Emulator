@@ -14,14 +14,8 @@
 class AppleFont
 {
 private:
-	struct Font
-	{
-		int num;
-		unsigned char data[FONT_X * FONT_Y];
-	};
-
- 	Font font[FONT_NUM];
-	Font invfont[FONT_NUM];
+	unsigned char font[FONT_NUM][FONT_X*FONT_Y];
+	unsigned char invfont[FONT_NUM][FONT_X*FONT_Y];
 	unsigned char* read_bmp(const char* fname, int* _w, int* _h);
 
 public:

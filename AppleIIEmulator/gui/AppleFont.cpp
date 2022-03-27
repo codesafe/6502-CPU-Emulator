@@ -2,6 +2,7 @@
 #include "AppleFont.h"
 #include "raylib.h"
 
+
 AppleFont::AppleFont() 
 {
 }
@@ -16,25 +17,24 @@ void AppleFont::Create()
 	unsigned char* img = read_bmp("font-normal.bmp", &w, &h);
 	for (int n = 0; n < FONT_NUM; n++)
 	{
-		font[n].num = n;
 		int pos = 0;
 		for (int y = 0; y < FONT_Y; y++)
 			for (int x = 0; x < FONT_X; x++)
-				font[n].data[pos++] = img[y * w + (x + n * FONT_X)];
+				font[n][pos++] = img[y * w + (x + n * FONT_X)];
  	}
 	free(img);
 
 	img = read_bmp("font-reverse.bmp", &w, &h);
 	for (int n = 0; n < FONT_NUM; n++)
 	{
-		invfont[n].num = n;
 		int pos = 0;
 		for (int y = 0; y < FONT_Y; y++)
 			for (int x = 0; x < FONT_X; x++)
-				invfont[n].data[pos++] = img[y * w + (x + n * FONT_X)];
+				invfont[n][pos++] = img[y * w + (x + n * FONT_X)];
 	}
 
 	free(img);
+
 }
 
 void AppleFont::RenderFont(int fontnum, int posx, int posy, bool inv)
@@ -43,7 +43,7 @@ void AppleFont::RenderFont(int fontnum, int posx, int posy, bool inv)
 	for(int y=0; y<FONT_Y; y++)
 		for (int x = 0; x < FONT_X; x++)
 		{
-			unsigned char c = inv ? invfont[fontnum].data[pos++] : font[fontnum].data[pos++];
+			unsigned char c = inv ? invfont[fontnum][pos++] : font[fontnum][pos++];
 			if( c == 1)
 				DrawPixel(posx + x, posy + y, GREEN);
 		}

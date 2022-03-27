@@ -76,8 +76,8 @@ void CPU::Reset(Memory &mem)
 	A = 0;
 	X = 0;
 	Y = 0;
-	PS = 0;				// processor status (flags)
-	//PS = (PS | FLAG_INTERRUPT_DISABLE) & ~FLAG_DECIMAL_MODE;
+	//PS = 0;				// processor status (flags)
+	PS = (PS | FLAG_INTERRUPT_DISABLE) & ~FLAG_DECIMAL_MODE;
 	SP = STACK_POS;	// Stack pointer
 	// ROM 로드후 정해짐
 	PC = mem.ReadByte(0xFFFC) | (mem.ReadByte(0xFFFD) << 8);
@@ -1675,7 +1675,7 @@ int CPU::Run(Memory &mem, int cycle)
 			// PC에로드되고 상태의 중단 플래그가 1로 설정됩니다.
 			case BRK :	// 7 cycle
 			{
-#if 0 // old
+#if 1 // old
 				// PC Push
 				// BRK는 PC를 +1하지 않고 +2한다고 함. 그래서 PC+1 push
 				// https://www.c64-wiki.com/wiki/BRK
@@ -1860,7 +1860,7 @@ WORD CPU::addr_mode_INDY(Memory& mem, int& cycle)
 
 void CPU::Execute_ADC(BYTE v)
 {
-#if 0 // old
+#if 1 // old
 	BYTE oldA = A;
 	WORD Result = A + v + Flag.C;
 	A = (Result & 0xFF);
@@ -1890,9 +1890,9 @@ void CPU::Execute_ADC(BYTE v)
 
 void CPU::Execute_SBC(BYTE v)
 {
-	// old
-	//Execute_ADC(~v);
-
+#if 1	// old
+	Execute_ADC(~v);
+#else
 	v ^= 0xFF;
 	if (Flag.D) 
 		v -= 0x0066;
@@ -1913,6 +1913,7 @@ void CPU::Execute_SBC(BYTE v)
 	else 
 		Flag.C = 0;
 	A = (result & 0xFF);
+#endif
 }
 
 void CPU::Execute_CMP(BYTE v)

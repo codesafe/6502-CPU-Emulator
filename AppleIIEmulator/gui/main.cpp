@@ -127,19 +127,17 @@ void TestDrawBox()
 
 int main(void)
 {
-	appleplus.InitMachine();
-
 	const int windowWidth = 1280;
 	const int windowHeight = 1024;
 
 	SetConfigFlags(FLAG_WINDOW_RESIZABLE /*| FLAG_VSYNC_HINT*/);
 	InitWindow(windowWidth, windowHeight, "APPLE II Plus Emulator");
-	SetWindowMinSize(320, 240);
-
-	int gameScreenWidth = 1280;
-	int gameScreenHeight = 1024;
+	//SetWindowMinSize(320, 240);
 
 	SetTargetFPS(TARGET_FRAME);
+	SetTraceLogLevel(LOG_ERROR);
+
+	appleplus.InitMachine();
 
 	int frame = 0;
 	while (!WindowShouldClose())
@@ -155,6 +153,10 @@ int main(void)
 
 		std::string f = format_string("FPS : %d", fps);
 		DrawText(f.c_str(), 10,300, 20, MAGENTA);
+
+		bool diskmotoron = appleplus.device.GetDiskMotorState();
+		std::string disk = format_string("DISK MOTOR : %s", diskmotoron ? "ON" : "OFF");
+		DrawText(disk.c_str(), 10, 320, 20, GREEN);
 
 		DrawRegistor();
 		DrawFlags();

@@ -34,7 +34,7 @@ Apple2Device::Apple2Device()
 
 Apple2Device::~Apple2Device()
 {
-	//mem.Destroy();
+
 }
 
 void Apple2Device::Create()
@@ -49,19 +49,10 @@ void Apple2Device::Create()
 	hires_Mode = false;
 	keyboard = 0;
 	videoAddress = videoPage * 0x0400;
-
-	// Language Card writable
-	LCWR = true;
-	// Language Card readable
-	LCRD = false;
-	// Language Card bank 2 enabled
-	LCBK2 = true;
-	// Language Card pre-write flip flop
-	LCWFF = false;
 }
 
 
-BYTE Apple2Device::SoftSwitch(WORD address, BYTE value, bool WRT)
+BYTE Apple2Device::SoftSwitch(Memory *mem, WORD address, BYTE value, bool WRT)
 {
 	// disk ][ I/O register
 	static BYTE dLatch = 0;
@@ -145,13 +136,13 @@ BYTE Apple2Device::SoftSwitch(WORD address, BYTE value, bool WRT)
 		case 0xCFFF:
 		case 0xC0E8: 
 			disk[currentDrive].motorOn = false; 
-			printf("--> DISK MOTOR OFF\n");
+			//printf("--> DISK MOTOR OFF\n");
 			break;
 
 		// MOTOR ON
 		case 0xC0E9: 
 			disk[currentDrive].motorOn = true;  
-			printf("--> DISK MOTOR ON\n");
+			//printf("--> DISK MOTOR ON\n");
 			break;
 
 		// DRIVE 0
@@ -198,21 +189,51 @@ BYTE Apple2Device::SoftSwitch(WORD address, BYTE value, bool WRT)
 		///////////////////////////////////////////////////////////////////////////////// LANGUAGE CARD
 
 		case 0xC080:                                                                // LANGUAGE CARD :
-		case 0xC084: LCBK2 = 1; LCRD = 1; LCWR = 0;      LCWFF = 0;    break;       // LC2RD
+		case 0xC084: 
+			mem->LCBK2 = 1; mem->LCRD = 1; mem->LCWR = 0;
+			mem->LCWFF = 0;    
+			break;       // LC2RD
+
 		case 0xC081:
-		case 0xC085: LCBK2 = 1; LCRD = 0; LCWR |= LCWFF; LCWFF = !WRT; break;       // LC2WR
+		case 0xC085: 
+			mem->LCBK2 = 1; mem->LCRD = 0; mem->LCWR |= mem->LCWFF; 
+			mem->LCWFF = !WRT; 
+			break;       // LC2WR
+
 		case 0xC082:
-		case 0xC086: LCBK2 = 1; LCRD = 0; LCWR = 0;      LCWFF = 0;    break;       // ROMONLY2
+		case 0xC086: 
+			mem->LCBK2 = 1; mem->LCRD = 0; mem->LCWR = 0;
+			mem->LCWFF = 0;    
+			break;       // ROMONLY2
+
 		case 0xC083:
-		case 0xC087: LCBK2 = 1; LCRD = 1; LCWR |= LCWFF; LCWFF = !WRT; break;       // LC2RW
+		case 0xC087: 
+			mem->LCBK2 = 1; mem->LCRD = 1; mem->LCWR |= mem->LCWFF; 
+			mem->LCWFF = !WRT; 
+			break;       // LC2RW
+
 		case 0xC088:
-		case 0xC08C: LCBK2 = 0; LCRD = 1; LCWR = 0;      LCWFF = 0;    break;       // LC1RD
+		case 0xC08C: 
+			mem->LCBK2 = 0; mem->LCRD = 1; mem->LCWR = 0;
+			mem->LCWFF = 0;    
+			break;       // LC1RD
+
 		case 0xC089:
-		case 0xC08D: LCBK2 = 0; LCRD = 0; LCWR |= LCWFF; LCWFF = !WRT; break;       // LC1WR
+		case 0xC08D: 
+			mem->LCBK2 = 0; mem->LCRD = 0; mem->LCWR |= mem->LCWFF; 
+			mem->LCWFF = !WRT; break;       // LC1WR
+
 		case 0xC08A:
-		case 0xC08E: LCBK2 = 0; LCRD = 0; LCWR = 0;      LCWFF = 0;    break;       // ROMONLY1
+		case 0xC08E: 
+			mem->LCBK2 = 0; mem->LCRD = 0; mem->LCWR = 0; 
+			mem->LCWFF = 0;    break;       // ROMONLY1
+
 		case 0xC08B:
-		case 0xC08F: LCBK2 = 0; LCRD = 1; LCWR |= LCWFF; LCWFF = !WRT; break;       // LC1RW
+		case 0xC08F: 
+			mem->LCBK2 = 0; mem->LCRD = 1; 
+			mem->LCWR |= mem->LCWFF; 
+			mem->LCWFF = !WRT; 
+			break;       // LC1RW
 	}
 	static int ticks = 0;
 	ticks++;
@@ -378,32 +399,61 @@ void Apple2Device::UpdateKeyBoard()
 
 	switch (key)
 	{
-		case KEY_A:            keyboard = 0xC1;   break;
-		case KEY_B:            keyboard = 0xC2;   break;
-		case KEY_C:            keyboard = 0xC3;   break;
-		case KEY_D:            keyboard = 0xC4;   break;
-		case KEY_E:            keyboard = 0xC5;   break;
-		case KEY_F:            keyboard = 0xC6;   break;
-		case KEY_G:            keyboard = 0xC7;   break;
-		case KEY_H:            keyboard = 0xC8;   break;
-		case KEY_I:            keyboard = 0xC9;   break;
-		case KEY_J:            keyboard = 0xCA;   break;
-		case KEY_K:            keyboard = 0xCB;   break;
-		case KEY_L:            keyboard = 0xCC;   break;
-		case KEY_M:            keyboard = 0xCD;   break;
-		case KEY_N:            keyboard = 0xCE;   break;
-		case KEY_O:            keyboard = 0xCF;   break;
-		case KEY_P:            keyboard = 0xD0;   break;
-		case KEY_Q:            keyboard = 0xD1;   break;
-		case KEY_R:            keyboard = 0xD2;   break;
-		case KEY_S:            keyboard = 0xD3;   break;
-		case KEY_T:            keyboard = 0xD4;   break;
-		case KEY_U:            keyboard = 0xD5;   break;
-		case KEY_V:            keyboard = 0xD6;   break;
-		case KEY_W:            keyboard = 0xD7;   break;
-		case KEY_X:            keyboard = 0xD8;   break;
-		case KEY_Y:            keyboard = 0xD9;   break;
-		case KEY_Z:            keyboard = 0xDA;   break;
+// 		case KEY_A:            keyboard = 0xC1;   break;
+// 		case KEY_B:            keyboard = 0xC2;   break;
+// 		case KEY_C:            keyboard = 0xC3;   break;
+// 		case KEY_D:            keyboard = 0xC4;   break;
+// 		case KEY_E:            keyboard = 0xC5;   break;
+// 		case KEY_F:            keyboard = 0xC6;   break;
+// 		case KEY_G:            keyboard = 0xC7;   break;
+// 		case KEY_H:            keyboard = 0xC8;   break;
+// 		case KEY_I:            keyboard = 0xC9;   break;
+// 		case KEY_J:            keyboard = 0xCA;   break;
+// 		case KEY_K:            keyboard = 0xCB;   break;
+// 		case KEY_L:            keyboard = 0xCC;   break;
+// 		case KEY_M:            keyboard = 0xCD;   break;
+// 		case KEY_N:            keyboard = 0xCE;   break;
+// 		case KEY_O:            keyboard = 0xCF;   break;
+// 		case KEY_P:            keyboard = 0xD0;   break;
+// 		case KEY_Q:            keyboard = 0xD1;   break;
+// 		case KEY_R:            keyboard = 0xD2;   break;
+// 		case KEY_S:            keyboard = 0xD3;   break;
+// 		case KEY_T:            keyboard = 0xD4;   break;
+// 		case KEY_U:            keyboard = 0xD5;   break;
+// 		case KEY_V:            keyboard = 0xD6;   break;
+// 		case KEY_W:            keyboard = 0xD7;   break;
+// 		case KEY_X:            keyboard = 0xD8;   break;
+// 		case KEY_Y:            keyboard = 0xD9;   break;
+// 		case KEY_Z:            keyboard = 0xDA;   break;
+
+		case KEY_A:
+		case KEY_B:
+		case KEY_C:
+		case KEY_D:
+		case KEY_E:
+		case KEY_F:
+		case KEY_G:
+		case KEY_H:
+		case KEY_I:
+		case KEY_J:
+		case KEY_K:
+		case KEY_L:
+		case KEY_M:
+		case KEY_N:
+		case KEY_O:
+		case KEY_P:
+		case KEY_Q:
+		case KEY_R:
+		case KEY_S:
+		case KEY_T:
+		case KEY_U:
+		case KEY_V:
+		case KEY_W:
+		case KEY_X:
+		case KEY_Y:
+		case KEY_Z:
+			keyboard = key - 0x80;
+			break;
 
 		case KEY_ZERO:			keyboard = shift ? 0xA9 : 0xB0; break;             // 0 )
 		case KEY_ONE:			keyboard = shift ? 0xA1 : 0xB1; break;             // 1 !
@@ -459,7 +509,12 @@ void Apple2Device::InsetFloppy()
 	memset(&disk[0], 0, sizeof(drive));
 	memset(&disk[1], 0, sizeof(drive));
 
-	//insertFloppy("rom/DOS3.3.nib", 0);
-	insertFloppy("rom/LodeRunner.nib", 0);
+	insertFloppy("rom/DOS3.3.nib", 0);
+	//insertFloppy("rom/LodeRunner.nib", 0);
 	
+}
+
+bool Apple2Device::GetDiskMotorState()
+{
+	return disk[currentDrive].motorOn;
 }

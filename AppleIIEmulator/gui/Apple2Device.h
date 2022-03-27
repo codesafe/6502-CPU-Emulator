@@ -53,17 +53,6 @@ public:
 	// can be $400, $800, $2000 or $4000
 	WORD videoAddress;
 
-
-	// Language Card writable
-	bool LCWR;
-	// Language Card readable
-	bool LCRD;
-	// Language Card bank 2 enabled
-	bool LCBK2; 
-	// Language Card pre-write flip flop
-	bool LCWFF; 
-
-
 private:
 	AppleFont font;
 	drive disk[2];
@@ -78,13 +67,15 @@ public:
 	~Apple2Device();
 
 	void Create();
-	BYTE SoftSwitch(WORD address, BYTE value, bool WRT);
+	BYTE SoftSwitch(Memory* mem, WORD address, BYTE value, bool WRT);
 	void PlaySound();
 	void Render(Memory& mem, int frame);
 
 	void UpdateKeyBoard();
 	bool UpdateFloppyDisk();
 	void InsetFloppy();
+
+	bool GetDiskMotorState();
 };
 
 
