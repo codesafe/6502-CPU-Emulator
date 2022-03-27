@@ -8,7 +8,7 @@ After [reinette](https://github.com/ArthurFerreira2/reinette) (Apple 1 emulator)
 
 \* reinette has two meanings in French : it's a little frog but also a delicious kind of apple
 
-[download windows binaries](https://github.com/ArthurFerreira2/reinette-II-plus/releases/tag/0.4b)
+[download windows binaries](https://github.com/ArthurFerreira2/reinette-II-plus/releases/tag/0.4)
 
 ### Featuring :
 
@@ -24,7 +24,7 @@ After [reinette](https://github.com/ArthurFerreira2/reinette) (Apple 1 emulator)
 * easy screenshot
 
 
-It uses the same MOS 6502 CPU emulator as her sisters (now christened [puce6502](https://github.com/ArthurFerreira2/puce6502)).\
+It uses an optimized and accurate MOS 6502 CPU emulator (now christened [puce6502](https://github.com/ArthurFerreira2/puce6502)).\
 You only need SDL2 to compile it. (I'm not using SDL_Mixer, but only the native SDL2 audio functions)
 
 This emulator is not accurate in many ways and does not compete with
@@ -32,13 +32,13 @@ This emulator is not accurate in many ways and does not compete with
 
 I wrote it with the goal to better understand the Apple ][ internals, and I'm publishing the sources in the hope they will be of any help.
 
-It's compact, less than 1000 SLOC, with two source files only, one for the CPU emulation, the other for the computer itself.
+It's compact, with two source files only, one for the CPU emulation, the other for the computer itself.
 
 I did my best to comment the code, and if you have an idea of how an Apple ][ works, it should be easy for you to understand the code, modify and enhance it for your needs (see TODO section).
 
 ### Startup
 
-  You can specify a .nib file on the command line to start the emulator with a floppy engaged in drive 1. Otherwise, the emulator will start with no floppy (and thus waits until you press the reset key or drag and drop a .nib file)
+  You can specify a .nib file at the command line to start the emulator with a floppy engaged in drive 1. Otherwise, the emulator will start with no floppy (and thus waits until you press the reset key or drag and drop a .nib file)
 
 ### Usage
 
@@ -66,9 +66,7 @@ Use the functions keys to control the emulator itself :
 * F7       : reset the zoom to 2:1
 * shift F7 : increase zoom up to 8:1 max
 * ctrl  F7 : decrease zoom down to 1:1 pixels
-* F8       : monochrome / color display (only in HGR mode)
-* F9       : pause / un-pause the emulator
-* F10      : break
+* F10       : pause / un-pause the emulator
 * F11      : reset
 * F12      : about, help
 

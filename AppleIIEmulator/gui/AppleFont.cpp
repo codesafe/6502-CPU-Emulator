@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include "AppleFont.h"
+#include "Apple2Device.h"
 #include "raylib.h"
 
 
@@ -37,15 +38,18 @@ void AppleFont::Create()
 
 }
 
-void AppleFont::RenderFont(int fontnum, int posx, int posy, bool inv)
+void AppleFont::RenderFont(Color* backbuffer, int fontnum, int posx, int posy, bool inv)
 {
 	int pos = 0;
 	for(int y=0; y<FONT_Y; y++)
 		for (int x = 0; x < FONT_X; x++)
 		{
 			unsigned char c = inv ? invfont[fontnum][pos++] : font[fontnum][pos++];
-			if( c == 1)
-				DrawPixel(posx + x, posy + y, GREEN);
+			if (c == 1)
+			{
+				backbuffer[((posy+y)*SCREENSIZE_X) + (posx + x)] = GREEN;
+				//DrawPixel(posx + x, posy + y, GREEN);
+			}
 		}
 }
 

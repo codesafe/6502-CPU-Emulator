@@ -62,7 +62,7 @@ BYTE Memory::ReadByte(int address)
 	if ((address & 0xFF00) == SL6START)
 		return(sl6[address - SL6START]); // disk][
 
-	if (address == 0xCFFF || ((address & 0xFF00) == 0xC000))
+	if ((address & 0xF000) == 0xC000)
 		return (device->SoftSwitch(this, address, 0, false));
 
 	return 0;
@@ -94,7 +94,7 @@ void Memory::WriteByte(int address, BYTE value)
 		return;
 	}
 
-	if (address == 0xCFFF || ((address & 0xFF00) == 0xC000)) 
+	if ((address & 0xF000) == 0xC000)
 	{
 		device->SoftSwitch(this, address, value, true);
 		return;

@@ -5,6 +5,7 @@
 #include "AppleCPU.h"
 #include "AppleMem.h"
 
+#define USEOLD	0
 
 CPU::CPU()
 {
@@ -224,8 +225,10 @@ WORD CPU::GetStackAddress()
 // Byte를 Stack에 Push
 void CPU::PushStackByte(Memory& mem, BYTE value, int& cycle)
 {
-	WriteByte(mem, value, GetStackAddress(), cycle);
-	SP--;
+	//WriteByte(mem, value, GetStackAddress(), cycle);
+	//SP--;
+
+	WriteByte(mem, value, 0x100 + SP--, cycle);
 	cycle--;
 }
 
@@ -243,8 +246,10 @@ void CPU::PushStackWord(Memory& mem, WORD value, int& cycle)
 // 스택에서 1 byte POP
 BYTE CPU::PopStackByte(Memory& mem, int& cycle)
 {
-	SP++;
-	BYTE popbyte = ReadByte(mem, GetStackAddress(), cycle);
+// 	SP++;
+// 	BYTE popbyte = ReadByte(mem, GetStackAddress(), cycle);
+	BYTE popbyte = ReadByte(mem, 0x100 + ++SP, cycle);
+
 	cycle--;
 	return popbyte;
 }
@@ -278,7 +283,7 @@ int CPU::Run(Memory &mem, int cycle)
 				Flag.C, Flag.Z, Flag.I, Flag.D, Flag.B, Flag.Unused, Flag.V, Flag.N);
 		}
 
-		if (prevPC == 0x336d)
+		if (prevPC == 0xa938)
 		{
 			printf("");
 		}
@@ -1675,7 +1680,7 @@ int CPU::Run(Memory &mem, int cycle)
 			// PC에로드되고 상태의 중단 플래그가 1로 설정됩니다.
 			case BRK :	// 7 cycle
 			{
-#if 1 // old
+#if USEOLD
 				// PC Push
 				// BRK는 PC를 +1하지 않고 +2한다고 함. 그래서 PC+1 push
 				// https://www.c64-wiki.com/wiki/BRK
@@ -1761,7 +1766,7 @@ WORD  CPU::addr_mode_ZP(Memory &mem, int &cycle)
 // Zero page + X
 WORD CPU::addr_mode_ZPX(Memory& mem, int& cycle)
 {
-	BYTE address = Fetch(mem, cycle) + X;
+	BYTE address = (Fetch(mem, cycle) + X) & 0xFF;
 	cycle--;
 	return address;
 }
@@ -1769,7 +1774,7 @@ WORD CPU::addr_mode_ZPX(Memory& mem, int& cycle)
 // Zero page + X
 WORD CPU::addr_mode_ZPY(Memory& mem, int& cycle)
 {
-	BYTE address = Fetch(mem, cycle) + Y;
+	BYTE address = (Fetch(mem, cycle) + Y) & 0xFF;
 	cycle--;
 	return address;
 }
@@ -1860,7 +1865,7 @@ WORD CPU::addr_mode_INDY(Memory& mem, int& cycle)
 
 void CPU::Execute_ADC(BYTE v)
 {
-#if 1 // old
+#if USEOLD
 	BYTE oldA = A;
 	WORD Result = A + v + Flag.C;
 	A = (Result & 0xFF);
@@ -1890,7 +1895,7 @@ void CPU::Execute_ADC(BYTE v)
 
 void CPU::Execute_SBC(BYTE v)
 {
-#if 1	// old
+#if USEOLD
 	Execute_ADC(~v);
 #else
 	v ^= 0xFF;
@@ -1942,18 +1947,40 @@ void CPU::Execute_CPY(BYTE v)
 
 void CPU::Execute_ASL(BYTE &v, int &cycle)
 {
+#if USEOLD
 	Flag.C = (v & FLAG_NEGATIVE) > 0;
 	v = v << 1;
 	cycle--;
 	SetZeroNegative(v);
+#else
+	WORD result = (v << 1);
+	if (result & 0xFF00) 
+		Flag.C = 1;
+	else
+		Flag.C = 0;
+
+	v = result & 0xFF;
+	SetZeroNegative(v);
+	cycle--;
+#endif
 }
 
 void CPU::Execute_LSR(BYTE& v, int& cycle)
 {
+#if USEOLD
 	Flag.C = (v & 0x01);
 	v = v >> 1;
 	cycle--;
 	SetZeroNegative(v);
+#else
+	Flag.C = (v & 0x01);
+	v = (v >> 1) & 0xFF;
+
+	SetZeroNegative(v);
+	cycle--;
+
+
+#endif
 }
 
 /*
@@ -1965,6 +1992,7 @@ void CPU::Execute_LSR(BYTE& v, int& cycle)
 */
 void CPU::Execute_ROL(BYTE& v, int& cycle)
 {
+#if USEOLD
 	// 이전의 carry flag값을 Shift후의 0bit에 채워준다
 	BYTE oldcarry = Flag.C ? 0x01 : 0x00;
 	Flag.C = (v & FLAG_NEGATIVE) > 0;
@@ -1972,6 +2000,15 @@ void CPU::Execute_ROL(BYTE& v, int& cycle)
 	v |= oldcarry;
 	cycle--;
 	SetZeroNegative(v);
+
+#else
+	WORD result = ((v << 1) | (PS & FLAG_CARRY));
+	if (result & 0x100) PS |= FLAG_CARRY;
+	else PS &= ~FLAG_CARRY;
+	v = result & 0xFF;
+	SetZeroNegative(v);
+	cycle--;
+#endif
 }
 
 /*
@@ -1983,6 +2020,7 @@ void CPU::Execute_ROL(BYTE& v, int& cycle)
 */
 void CPU::Execute_ROR(BYTE& v, int& cycle)
 {
+#if USEOLD
 	// 최하비트가 1인가? -> 다음 캐리비트로 설정
 	BYTE oldcarry = (v & FLAG_CARRY) > 0;
 	v = v >> 1;
@@ -1991,6 +2029,16 @@ void CPU::Execute_ROR(BYTE& v, int& cycle)
 	cycle--;
 	Flag.C = oldcarry;
 	SetZeroNegative(v);
+#else
+	WORD result = (v >> 1) | ((PS & FLAG_CARRY) << 7);
+	if (v & 0x1) 
+		PS |= FLAG_CARRY;
+	else 
+		PS &= ~FLAG_CARRY;
+	v = result & 0xFF;
+	SetZeroNegative(v);
+	cycle--;
+#endif
 }
 
 

@@ -2,14 +2,9 @@
 #define APPLE2_FONT_H
 
 #include "Predef.h"
+#include "raylib.h"
 
-#define FONT_X		7
-#define FONT_Y		8
-#define FONT_NUM	128
 
-#define FONT_NORMAL			0
-#define FONT_INVERSE		1
-#define FONT_FLASH			2
 
 class AppleFont
 {
@@ -23,7 +18,7 @@ public:
 	~AppleFont();
 
 	void Create();
-	void RenderFont(int fontnum, int x, int y, bool inv);
+	void RenderFont(Color *backbuffer, int fontnum, int x, int y, bool inv);
 
 };
 

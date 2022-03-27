@@ -4,13 +4,6 @@
 #include <stdio.h>
 #include "AppleFont.h"
 
-#define RAMSIZE			0xC000
-#define ROMSIZE			0x3000
-#define ROMSTART		0xD000
-
-#define SL6START		0xC600
-#define SL6SIZE			0x00FF
-
 class CPU;	// 6502 cpu
 class Memory;
 
@@ -54,6 +47,10 @@ public:
 	WORD videoAddress;
 
 private:
+	Color* backbuffer;	// Render Backbuffer
+	Texture2D renderTexture;
+	Image renderImage;
+
 	AppleFont font;
 	drive disk[2];
 
@@ -61,6 +58,10 @@ private:
 	int insertFloppy(const char* filename, int drv);
 	void stepMotor(WORD address);
 	void setDrv(int drv);
+
+	void ClearScreen();
+	void DrawPoint(int x, int y);
+	int GetScreenMode();
 
 public:
 	Apple2Device();

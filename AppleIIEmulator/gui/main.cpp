@@ -145,7 +145,7 @@ int main(void)
 		int fps = GetFPS();
 		long long p = (long long)(1023000.0 / fps);	// 1.023MHz
 
-		//long long p = 100;
+		//long long p = 10000000;
 		appleplus.Run((int)p);
 
 		BeginDrawing();

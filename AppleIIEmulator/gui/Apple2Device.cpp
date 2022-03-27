@@ -27,14 +27,52 @@ BYTE GCReleaseSpeed = 8;
 // $C070 the tick at which the GCs were reseted
 long long int GCCrigger;
 
+const int offsetGR[24] = {                                                    // helper for TEXT and GR video generation
+  0x000, 0x080, 0x100, 0x180, 0x200, 0x280, 0x300, 0x380,                     // lines 0-7
+  0x028, 0x0A8, 0x128, 0x1A8, 0x228, 0x2A8, 0x328, 0x3A8,                     // lines 8-15
+  0x050, 0x0D0, 0x150, 0x1D0, 0x250, 0x2D0, 0x350, 0x3D0 };                    // lines 16-23
+
+
+const int offsetHGR[192] = {                                                  // helper for HGR video generation
+	0x0000, 0x0400, 0x0800, 0x0C00, 0x1000, 0x1400, 0x1800, 0x1C00,             // lines 0-7
+	0x0080, 0x0480, 0x0880, 0x0C80, 0x1080, 0x1480, 0x1880, 0x1C80,             // lines 8-15
+	0x0100, 0x0500, 0x0900, 0x0D00, 0x1100, 0x1500, 0x1900, 0x1D00,             // lines 16-23
+	0x0180, 0x0580, 0x0980, 0x0D80, 0x1180, 0x1580, 0x1980, 0x1D80,
+	0x0200, 0x0600, 0x0A00, 0x0E00, 0x1200, 0x1600, 0x1A00, 0x1E00,
+	0x0280, 0x0680, 0x0A80, 0x0E80, 0x1280, 0x1680, 0x1A80, 0x1E80,
+	0x0300, 0x0700, 0x0B00, 0x0F00, 0x1300, 0x1700, 0x1B00, 0x1F00,
+	0x0380, 0x0780, 0x0B80, 0x0F80, 0x1380, 0x1780, 0x1B80, 0x1F80,
+	0x0028, 0x0428, 0x0828, 0x0C28, 0x1028, 0x1428, 0x1828, 0x1C28,
+	0x00A8, 0x04A8, 0x08A8, 0x0CA8, 0x10A8, 0x14A8, 0x18A8, 0x1CA8,
+	0x0128, 0x0528, 0x0928, 0x0D28, 0x1128, 0x1528, 0x1928, 0x1D28,
+	0x01A8, 0x05A8, 0x09A8, 0x0DA8, 0x11A8, 0x15A8, 0x19A8, 0x1DA8,
+	0x0228, 0x0628, 0x0A28, 0x0E28, 0x1228, 0x1628, 0x1A28, 0x1E28,
+	0x02A8, 0x06A8, 0x0AA8, 0x0EA8, 0x12A8, 0x16A8, 0x1AA8, 0x1EA8,
+	0x0328, 0x0728, 0x0B28, 0x0F28, 0x1328, 0x1728, 0x1B28, 0x1F28,
+	0x03A8, 0x07A8, 0x0BA8, 0x0FA8, 0x13A8, 0x17A8, 0x1BA8, 0x1FA8,
+	0x0050, 0x0450, 0x0850, 0x0C50, 0x1050, 0x1450, 0x1850, 0x1C50,
+	0x00D0, 0x04D0, 0x08D0, 0x0CD0, 0x10D0, 0x14D0, 0x18D0, 0x1CD0,
+	0x0150, 0x0550, 0x0950, 0x0D50, 0x1150, 0x1550, 0x1950, 0x1D50,
+	0x01D0, 0x05D0, 0x09D0, 0x0DD0, 0x11D0, 0x15D0, 0x19D0, 0x1DD0,
+	0x0250, 0x0650, 0x0A50, 0x0E50, 0x1250, 0x1650, 0x1A50, 0x1E50,
+	0x02D0, 0x06D0, 0x0AD0, 0x0ED0, 0x12D0, 0x16D0, 0x1AD0, 0x1ED0,             // lines 168-183
+	0x0350, 0x0750, 0x0B50, 0x0F50, 0x1350, 0x1750, 0x1B50, 0x1F50,             // lines 176-183
+	0x03D0, 0x07D0, 0x0BD0, 0x0FD0, 0x13D0, 0x17D0, 0x1BD0, 0x1FD0 };            // lines 184-191
+
+int HiResCache[192][40] = { 0 };                                              // check which Hi-Res 7 dots needs redraw
+uint8_t previousBit[192][40] = { 0 };                                         // the last bit value of the byte before.
+uint8_t flashCycle = 0;                                                       // TEXT cursor flashes at 2Hz
+
 
 Apple2Device::Apple2Device()
 {
+	backbuffer = NULL;
 }
 
 Apple2Device::~Apple2Device()
 {
-
+	if (backbuffer != NULL)
+		delete[] backbuffer;
 }
 
 void Apple2Device::Create()
@@ -42,13 +80,22 @@ void Apple2Device::Create()
 	font.Create();
 
 	currentDrive = 0;
-
 	textMode = true;
 	mixedMode = false;
 	videoPage = 1;
 	hires_Mode = false;
 	keyboard = 0;
 	videoAddress = videoPage * 0x0400;
+
+	backbuffer = new Color[SCREENSIZE_X * SCREENSIZE_Y];
+	ClearScreen();
+
+	renderImage.data = backbuffer;
+	renderImage.width = SCREENSIZE_X;
+	renderImage.height = SCREENSIZE_Y;
+	renderImage.format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
+	renderImage.mipmaps = 1;
+	renderTexture = LoadTextureFromImage(renderImage);
 }
 
 
@@ -77,37 +124,46 @@ BYTE Apple2Device::SoftSwitch(Memory *mem, WORD address, BYTE value, bool WRT)
 
 		case 0xC050: 
 			textMode = false; 
+			printf("Text Mode Off\n");
 			break;
 		// Text
 		case 0xC051: 
 			textMode = true;  
+			printf("Text Mode On\n");
 			break;
 
 		// Mixed off
 		case 0xC052: 
 			mixedMode = false; 
+			printf("Mixed Mode Off\n");
 			break;
 
 		// Mixed on
 		case 0xC053: 
 			mixedMode = true;  
+			printf("Mixed Mode On\n");
 			break;
+
 		// Page 1
 		case 0xC054: 
 			videoPage = 1;
+			printf("Video Page 1\n");
 			break;
 		// Page 2
 		case 0xC055: 
 			videoPage = 2;
+			printf("Video Page 2\n");
 			break;
 
 		// HiRes off
 		case 0xC056: 
 			hires_Mode = false; 
+			printf("HIRES Mode Off\n");
 			break;
 		// HiRes on
 		case 0xC057: 
 			hires_Mode = true;  
+			printf("HIRES Mode On\n");
 			break;
 
 		/////////////////////////////////////////////////////////////////////////////////	Joy Paddle ?
@@ -257,25 +313,126 @@ void Apple2Device::PlaySound()
 // 	}
 }
 
-const int offsetGR[24] = {                                                    // helper for TEXT and GR video generation
-  0x000, 0x080, 0x100, 0x180, 0x200, 0x280, 0x300, 0x380,                     // lines 0-7
-  0x028, 0x0A8, 0x128, 0x1A8, 0x228, 0x2A8, 0x328, 0x3A8,                     // lines 8-15
-  0x050, 0x0D0, 0x150, 0x1D0, 0x250, 0x2D0, 0x350, 0x3D0 };                    // lines 16-23
+void Apple2Device::ClearScreen()
+{
+	for (int y = 0; y < SCREENSIZE_Y; y++)
+		for (int x = 0; x < SCREENSIZE_X; x++)
+		{
+			backbuffer[y * SCREENSIZE_X + x] = CLITERAL(Color) { 30, 30, 30, 255 };
+		}
+}
 
-int textPosx = 300;
-int textPosy = 50;
+void Apple2Device::DrawPoint(int x, int y)
+{
+	backbuffer[y * SCREENSIZE_X + x] = GREEN;
+}
 
+int Apple2Device::GetScreenMode()
+{
+	if (mixedMode == false)
+	{
+		if (textMode == false && hires_Mode)
+			return HIRES_MODE;
+
+		if (textMode == false && hires_Mode == false)
+			return LORES_MODE;
+
+		if (textMode == true && hires_Mode == false)
+			return TEXT_MODE;
+	}
+	else
+	{
+		if (hires_Mode)
+			return HIRES_MIX_MODE;
+
+		if (hires_Mode == false)
+			return LORES_MIX_MODE;
+	}
+
+	return TEXT_MODE;
+}
+
+/*
+	TEXT 40x24 ( 7x8 Font )
+	LORES : 40x24 (MIX 40x20)
+	HIRES : 280×192 (MIX 280×160)
+	MIX일경우에 하단은 TEXT( 4Line : 32 pixel )
+*/
 void Apple2Device::Render(Memory &mem, int frame)
 {
-	int maxcolumn = 40;
-	int maxline = 24;
+	int maxcolumn = SCREENTEXT_X;
+	int maxline = SCREENTEXT_Y;
+
+	ClearScreen();
+	int screenmode = GetScreenMode();
 
 	// video Page에 따라 Address가 달라짐
 	// $400, $800, $2000, $4000
-	videoAddress = videoPage * 0x0400;
-
-	if (textMode == true || mixedMode == true)
+	if (screenmode == LORES_MODE || screenmode == HIRES_MODE || 
+		screenmode == LORES_MIX_MODE || screenmode == HIRES_MIX_MODE)
 	{
+		// LoRes 저해상도
+		if (hires_Mode == false)
+		{
+
+		}
+		else
+		{
+			// highRes 고해상도
+			WORD word;
+			BYTE bits[16], bit, pbit, colorSet, even;
+			// PAGE is 1 or 2
+			videoAddress = 0x2000 + videoPage * 0x2000;
+			uint8_t lastLine = mixedMode ? 160 : 192;
+			uint8_t colorIdx = 0;                                                     // to index the color arrays
+
+			for (int line = 0; line < lastLine; line++) {                             // for every line
+				for (int col = 0; col < 40; col += 2) {                                 // for every 7 horizontal dots
+					int x = col * 7;
+					even = 0;
+
+					word = (WORD)(mem.ReadByte((videoAddress + offsetHGR[line] + col + 1))) << 8;    // store the two next bytes into 'word'
+					word += mem.ReadByte(videoAddress + offsetHGR[line] + col);              // in reverse order
+
+					if (HiResCache[line][col] != word || !flashCycle) {                   // check if this group of 7 dots need a redraw
+
+						for (bit = 0; bit < 16; bit++)                                        // store all bits 'word' into 'bits'
+							bits[bit] = (word >> bit) & 1;
+						colorSet = bits[7] * 4;                                             // select the right color set
+						pbit = previousBit[line][col];                                      // the bit value of the left dot
+						bit = 0;                                                            // starting at 1st bit of 1st byte
+
+						while (bit < 15) {                                                  // until we reach bit7 of 2nd byte
+							if (bit == 7) {                                                   // moving into the second byte
+								colorSet = bits[15] * 4;                                        // update the color set
+								bit++;                                                          // skip bit 7
+							}
+							colorIdx = even + colorSet + (bits[bit] << 1) + (pbit);
+							//SDL_SetRenderDrawColor(rdr, hcolor[colorIdx][0], hcolor[colorIdx][1], hcolor[colorIdx][2], SDL_ALPHA_OPAQUE);
+							//SDL_RenderDrawPoint(rdr, x++, line);
+
+							DrawPoint(x++, line);
+							pbit = bits[bit++];                                               // proceed to the next pixel
+							even = even ? 0 : 8;                                              // one pixel every two is darker
+						}
+
+						HiResCache[line][col] = word;                                       // update the video cache
+						if ((col < 37) && (previousBit[line][col + 2] != pbit)) {           // check color franging effect on the dot after
+							previousBit[line][col + 2] = pbit;                                // set pbit and clear the
+							HiResCache[line][col + 2] = -1;                                   // video cache for next dot
+						}
+					}                                                                     // if (HiResCache[line][col] ...
+				}
+			}
+
+		}
+	}
+
+	// TEXT는 TEXT Only 그리고 Mixed에 모두 출력되어야 함
+	if (screenmode == TEXT_MODE || screenmode == LORES_MIX_MODE || screenmode == HIRES_MIX_MODE)
+	{
+		videoAddress = videoPage * 0x0400;
+
 		// Text or Mixed
 		// Font 크기 7X8 / 40x20 글자
 		int linelimit = textMode ? 0 : 20;
@@ -290,9 +447,9 @@ void Apple2Device::Render(Memory &mem, int frame)
 				int fontattr = 0;
 				if (glyph > 0x7F)
 					fontattr = FONT_NORMAL;
-				else if (glyph < 0x40) 
+				else if (glyph < 0x40)
 					fontattr = FONT_INVERSE;
-				else 
+				else
 					fontattr = FONT_FLASH;
 
 				glyph &= 0x7F; // unset bit 7
@@ -301,29 +458,25 @@ void Apple2Device::Render(Memory &mem, int frame)
 
 				if (fontattr == FONT_NORMAL || (fontattr == FONT_FLASH && frame < 15))
 				{
-					font.RenderFont(glyph, textPosx + (col * 7), textPosy + (line * 8), false);
+					font.RenderFont(backbuffer, glyph, col * FONT_X, line * FONT_Y, false);
 				}
 				else
 				{
-					font.RenderFont(glyph, textPosx + (col * 7), textPosy + (line * 8), true);
+					font.RenderFont(backbuffer, glyph, col * FONT_X, line * FONT_Y, true);
 				}
 			}
 		}
 	}
-	else
-	{
-		// LoRes 저해상도
-		if (hires_Mode == false)
-		{
-
-		}
-		else
-		{
-			// highRes 고해상도
 
 
-		}
-	}
+	// Render Backbuffer
+	UnloadTexture(renderTexture);
+	renderTexture = LoadTextureFromImage(renderImage);
+
+	Vector2 pos;
+ 	pos.x = 300;
+ 	pos.y = 10;
+	DrawTextureEx(renderTexture, pos, 0, 2, WHITE);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -509,8 +662,8 @@ void Apple2Device::InsetFloppy()
 	memset(&disk[0], 0, sizeof(drive));
 	memset(&disk[1], 0, sizeof(drive));
 
-	insertFloppy("rom/DOS3.3.nib", 0);
-	//insertFloppy("rom/LodeRunner.nib", 0);
+//	insertFloppy("rom/DOS3.3.nib", 0);
+	insertFloppy("rom/LodeRunner.nib", 0);
 	
 }
 
