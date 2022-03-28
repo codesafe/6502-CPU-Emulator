@@ -47,8 +47,17 @@ void AppleFont::RenderFont(Color* backbuffer, int fontnum, int posx, int posy, b
 			unsigned char c = inv ? invfont[fontnum][pos++] : font[fontnum][pos++];
 			if (c == 1)
 			{
-				backbuffer[((posy+y)*SCREENSIZE_X) + (posx + x)] = GREEN;
-				//DrawPixel(posx + x, posy + y, GREEN);
+				if(backbuffer == NULL)
+					DrawPixel(posx + x, posy + y, GREEN);
+				else
+					backbuffer[((posy+y)*SCREENSIZE_X) + (posx + x)] = GREEN;
+			}
+			else
+			{
+				if (backbuffer == NULL)
+					DrawPixel(posx + x, posy + y, BLACK);
+				else
+					backbuffer[((posy + y) * SCREENSIZE_X) + (posx + x)] = BLACK;
 			}
 		}
 }

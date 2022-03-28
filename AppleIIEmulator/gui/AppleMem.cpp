@@ -46,21 +46,20 @@ BYTE Memory::ReadByte(int address)
 	return v;
 #else
 	if (address < RAMSIZE)
-		return(ram[address]);                                                 // RAM
+		return ram[address];                                                        // RAM
 
-	if (address >= ROMSTART) 
-	{
+	if (address >= ROMSTART) {
 		if (!LCRD)
-			return(rom[address - ROMSTART]);                                    // ROM
+			return rom[address - ROMSTART];                                           // ROM
 
 		if (LCBK2 && (address < 0xE000))
-			return(bk2[address - BK2START]);                                    // BK2
+			return bk2[address - BK2START];                                           // BK2
 
-		return(lgc[address - LGCSTART]);                                       // LC
+		return lgc[address - LGCSTART];                                             // LC
 	}
 
 	if ((address & 0xFF00) == SL6START)
-		return(sl6[address - SL6START]); // disk][
+		return sl6[address - SL6START];  // disk][
 
 	if ((address & 0xF000) == 0xC000)
 		return (device->SoftSwitch(this, address, 0, false));
@@ -77,20 +76,17 @@ void Memory::WriteByte(int address, BYTE value)
 	if (address == 0xCFFF || ((address & 0xFF00) == 0xC000))
 		device->SoftSwitch(address, value, true);
 #else
-	if (address < RAMSIZE) 
-	{
-		ram[address] = value;                                                 // RAM
+	if (address < RAMSIZE) {
+		ram[address] = value;                                                       // RAM
 		return;
 	}
 
-	if (LCWR && (address >= ROMSTART)) 
-	{
-		if (LCBK2 && (address < 0xE000)) 
-		{
-			bk2[address - BK2START] = value;                                    // BK2
+	if (LCWR && (address >= ROMSTART)) {
+		if (LCBK2 && (address < 0xE000)) {
+			bk2[address - BK2START] = value;                                          // BK2
 			return;
 		}
-		lgc[address - LGCSTART] = value;                                       // LC
+		lgc[address - LGCSTART] = value;                                            // LC
 		return;
 	}
 

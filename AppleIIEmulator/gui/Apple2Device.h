@@ -7,6 +7,10 @@
 class CPU;	// 6502 cpu
 class Memory;
 
+struct _RECT
+{
+	int x, y, width, height;
+};
 
 // two disk ][ drive units
 struct drive
@@ -31,20 +35,42 @@ struct drive
 class Apple2Device
 {
 public:
-	// Current Drive - only one can be enabled at a time
+	bool colorMonitor;
+	BYTE zoomscale;
+	int tick;
+
+	// 패들정보
+	BYTE PB0;  // $C061 Push Button 0 (bit 7) / Open Apple
+	BYTE PB1;  // $C062 Push Button 1 (bit 7) / Solid Apple
+	BYTE PB2;  // $C063 Push Button 2 (bit 7) / shift mod !!!
+	float GCP[2]; // GC Position ranging from 0 (left) to 255 right
+	float GCC[2]; // $C064 (GC0) and $C065 (GC1) Countdowns
+	int GCD[2];// GC0 and GC1 Directions (left/down or right/up)
+	int GCA[2];// GC0 and GC1 Action (push or release)
+	BYTE GCActionSpeed; // Game Controller speed at which it goes to the edges
+	BYTE GCReleaseSpeed;// Game Controller speed at which it returns to center
+	long long int GCCrigger; // $C070 the tick at which the GCs were reseted
+
+	// 현재 플로피 디스크 (1,2)
 	int	currentDrive;
+
 	// $C050 CLRTEXT / $C051 SETTEXT
 	bool textMode;
+
 	// $C052 CLRMIXED / $C053 SETMIXED
 	bool mixedMode;
-	// $C054 PAGE1 / $C055 PAGE2
-	WORD videoPage;
-	// $C056 GR / $C057 HGR
+
+	// 비디오 페이지
+	BYTE videoPage;
+	// 고해상도 모드
 	bool hires_Mode;
-	// $C000, $C010 ascii value of keyboard input
+
+	// 키보드입력 값
 	BYTE keyboard;
-	// can be $400, $800, $2000 or $4000
+	// 비디오 메모리 주소
 	WORD videoAddress;
+
+	_RECT pixelGR;
 
 private:
 	Color* backbuffer;	// Render Backbuffer
@@ -54,14 +80,19 @@ private:
 	AppleFont font;
 	drive disk[2];
 
+	void resetPaddles();
+	BYTE readPaddle(int pdl);
+
 	// DISK2
 	int insertFloppy(const char* filename, int drv);
 	void stepMotor(WORD address);
 	void setDrv(int drv);
 
 	void ClearScreen();
-	void DrawPoint(int x, int y);
+	void DrawPoint(int x, int y, int r, int g, int b);
+	void DrawRect(_RECT rect, int r, int g, int b);
 	int GetScreenMode();
+	void DrawCpuInfomation();
 
 public:
 	Apple2Device();

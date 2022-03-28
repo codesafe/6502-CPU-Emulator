@@ -3,7 +3,7 @@
 
 TEST(TEST_LOADASSEMCODE, ASSEMCODETEST)
 {
-	constexpr int codesize = 65526;
+	constexpr int codesize = 65536;
 	BYTE* buffer = new BYTE[codesize];
 
 	FILE* fp;
@@ -11,13 +11,20 @@ TEST(TEST_LOADASSEMCODE, ASSEMCODETEST)
 	fread(buffer, 1, codesize, fp);
 	fclose(fp);
 
-	mem.UpLoadProgram(0x000A, buffer, codesize);
+	mem.UpLoadProgram(0x0000, buffer, codesize);
 	delete[] buffer;
-
+	//cpu.Reset(mem);
 	cpu.PC = 0x400;
 
+	long count = 0;
 	while (true)
 	{
 		cpu.Run(mem, 1);
+		if( cpu.PC == 0x3469)
+			break;
+// 		if (count > 100000)
+// 			break;
+		count++;
 	}
+
 }

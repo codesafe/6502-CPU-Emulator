@@ -18,7 +18,12 @@
 #define ROMSIZE			0x3000
 #define ROMSTART		0xD000
 #define SL6START		0xC600
-#define SL6SIZE			0x00FF
+#define SL6SIZE			0x0100
+
+#define LGCSTART 0xD000
+#define LGCSIZE  0x3000
+#define BK2START 0xD000
+#define BK2SIZE  0x1000
 
 #define FONT_X				7
 #define FONT_Y				8

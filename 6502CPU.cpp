@@ -23,8 +23,23 @@ void CPU::Reset()
 	X = 0;
 	Y = 0;
 	PS = 0;				// processor status (flags)
+	Flag.I = 1;
+	Flag.Unused = 1;
+
 	SP = STACK_POS;	// Stack pointer
 	PC = PC_START;		// program control
+}
+
+// reset all register
+void CPU::Reset(Memory &mem)
+{
+	A = 0;
+	X = 0;
+	Y = 0;
+	PS = 0;				// processor status (flags)
+	SP = STACK_POS;	// Stack pointer
+	//PC = PC_START;		// program control
+	PC = mem[0xFFFC] | (mem[0xFFFD] << 8);
 }
 
 void CPU::SetPCAddress(WORD addr)
@@ -161,7 +176,7 @@ void CPU::WriteWord(Memory& mem, WORD value, int addr, int& cycle)
 */
 WORD CPU::GetStackAddress()
 {
-	WORD sp = STACK_ADDRESS | SP;
+	WORD sp = STACK_ADDRESS + SP;
 	return sp;
 }
 
@@ -196,9 +211,13 @@ BYTE CPU::PopStackByte(Memory& mem, int& cycle)
 // Stack에서 Word pop
 WORD CPU::PopStackWord(Memory& mem, int& cycle)
 {
-	WORD popWord = ReadWord(mem, GetStackAddress()+1, cycle);
-	SP += 2;
+	SP++;
+	BYTE lo = ReadByte(mem, GetStackAddress(), cycle);
+	SP++;
+	BYTE hi = ReadByte(mem, GetStackAddress(), cycle);
+	WORD popWord = lo | (hi << 8);
 	cycle--;
+
 	return popWord;
 }
 
@@ -214,12 +233,21 @@ int CPU::Run(Memory &mem, int cycle)
 		BYTE inst = Fetch(mem, cycle);
 		lastInst = inst;
 
-		if (enableLog)
-		{
-			printf("A:[%2X] X:[%2X] Y:[%2X] PC:[%4X] ", A, X, Y, prevPC);
-			printf("INST : [%2X] / C:[%d] Z:[%d] I:[%d] D:[%d] B:[%d] U:[%d] V:[%d] N:[%d]\n", inst,
-				Flag.C, Flag.Z, Flag.I, Flag.D, Flag.B, Flag.Unused, Flag.V, Flag.N);
-		}
+		enableLog = 0;
+// 		if (prevPC == 0x9cf)
+// 			printf("aa");
+// 
+// 		static BYTE prevV = 0;
+// 		if (prevV == 0 && mem[0x01fd] == 0x30)
+// 		{
+// 			prevV = 0x30;
+// 			printf("aa");
+// 		}
+// 		else if(mem[0x01fd] != 0x30)
+// 		{
+// 			prevV = 0;
+// 		}
+
 		switch (inst)
 		{
 			case LDA_IM: // 2 cycle
@@ -535,12 +563,18 @@ int CPU::Run(Memory &mem, int cycle)
 			{
 				// The JSR instruction pushes the address (minus one) of the return 
 				// point on to the stack and then sets the program counter to the target memory address.
-  				WORD sr_addr = FetchWord(mem, cycle);
+//   				WORD sr_addr = FetchWord(mem, cycle);
+// 				// 스택에 PC-1을 Push
+// 				PushStackWord(mem, PC - 1, cycle);
+// 				PC = sr_addr;
+// 				cycle--;
+// 
+				BYTE lo = ReadByte(mem, PC, cycle);
+				PC++;
+				WORD address = lo | (ReadByte(mem,PC,cycle) << 8);
 
-				// 스택에 PC-1을 Push
-				PushStackWord(mem, PC - 1, cycle);
-
-				PC = sr_addr;
+				PushStackWord(mem, PC, cycle);
+				PC = address;
 				cycle--;
 			}
 			break;
@@ -615,18 +649,20 @@ int CPU::Run(Memory &mem, int cycle)
 			case PLP :	// 4 cycle
 			{
 				// pop 8 bit를 --> PS (Flag) : 플레그들은 Pop된 값에의하여 새로운 플레그 상태를 갖음
-//  				PS = PopStackByte(mem, cycle);
-//  				cycle--;
-
+#if USEOLD
 				BYTE _PS = PopStackByte(mem, cycle);
 				cycle--;
 				_PS &= ~(FLAG_UNUSED | FLAG_BREAK);
 				PS = 0;
 				PS |= _PS;
-
 				// B , Unused는 사용하지 않음
 				Flag.B = 0;
 				Flag.Unused = 0;
+#else
+				PS = PopStackByte(mem, cycle) | FLAG_UNUSED;
+				//SP++;
+				//PS = ReadByte(mem, 0x100 + SP, cycle) | FLAG_UNUSED;
+#endif
 			}
 			break;
 
@@ -634,7 +670,7 @@ int CPU::Run(Memory &mem, int cycle)
 			case PHP :	// 3 cycle
 			{
 				// PS -> Stack에 Push
-				BYTE _PS = PS | FLAG_UNUSED | FLAG_BREAK;
+				BYTE _PS = PS | FLAG_BREAK;
 				PushStackByte(mem, _PS, cycle);
 			}
 			break;
@@ -1612,6 +1648,7 @@ int CPU::Run(Memory &mem, int cycle)
 			// PC에로드되고 상태의 중단 플래그가 1로 설정됩니다.
 			case BRK :	// 7 cycle
 			{
+#if 0
 				// PC Push
 				// BRK는 PC를 +1하지 않고 +2한다고 함. 그래서 PC+1 push
 				// https://www.c64-wiki.com/wiki/BRK
@@ -1625,6 +1662,18 @@ int CPU::Run(Memory &mem, int cycle)
 				PC = interruptVector;
 				Flag.B = 1;
 				Flag.I = 1;
+#else
+				PC++;
+				WriteByte(mem, ((PC) >> 8) & 0xFF, 0x100 + SP, cycle);
+				SP--;
+				WriteByte(mem, PC & 0xFF, 0x100 + SP, cycle);
+				SP--;
+				WriteByte(mem, PS | FLAG_BREAK, 0x100 + SP, cycle);
+				SP--;
+				Flag.I = 1;
+				Flag.D = 0;
+				PC = ReadByte(mem, 0xFFFE, cycle) | ReadByte(mem, 0xFFFF, cycle) << 8;
+#endif
 			}
 			break;
 
@@ -1633,15 +1682,16 @@ int CPU::Run(Memory &mem, int cycle)
 			// 프로그램 카운터 뒤에 오는 스택에서 프로세서 플래그를 가져옵니다.
 			case RTI :	// 6 cycle
 			{
-				BYTE _PS = PopStackByte(mem, cycle);
-				_PS &= ~(FLAG_UNUSED | FLAG_BREAK);
-				PS = 0;
-				PS |= _PS;
+				//BYTE PS = PopStackByte(mem, cycle);
+				//PC = PopStackWord(mem, cycle);
 
-				//PS = PopStackByte(mem, cycle);
-				PC = PopStackWord(mem, cycle);
-				Flag.B = 0;
-				Flag.Unused = 0;
+				SP++;
+				PS = ReadByte(mem, 0x100 + SP, cycle);
+				SP++;
+				PC = ReadByte(mem, 0x100 + SP, cycle);
+				SP++;
+				PC |= ReadByte(mem, 0x100 + SP, cycle) << 8;
+				cycle -= 5;
 			}
 			break;
 
@@ -1656,6 +1706,14 @@ int CPU::Run(Memory &mem, int cycle)
 				throw -1;
 				break;
 		}
+
+		if (enableLog)
+		{
+		printf("A:[%2X] X:[%2X] Y:[%2X] PC:[%4X] SP:[%2X] ", A, X, Y, prevPC, SP);
+		printf("INST : [%2X] / C:[%d] Z:[%d] I:[%d] D:[%d] B:[%d] U:[%d] V:[%d] N:[%d]\n", inst,
+			Flag.C, Flag.Z, Flag.I, Flag.D, Flag.B, Flag.Unused, Flag.V, Flag.N);
+		}
+
 	}
 
 	return CyclesRequested - cycle;
@@ -1710,12 +1768,23 @@ WORD CPU::addr_mode_ABS(Memory& mem, int& cycle)
 // ABS + X
 WORD CPU::addr_mode_ABSX(Memory& mem, int& cycle)
 {
+#if 0
 	BYTE lo = Fetch(mem, cycle);
 	BYTE hi = Fetch(mem, cycle);
 	WORD t = lo + X;
-	if (t > 0xFF) cycle--;
+	if (t & 0xFF00) cycle--;
 	WORD address = (lo | (hi << 8)) + X;
 	return address;
+
+#else
+	WORD address = Fetch(mem, cycle);
+	if ((address + X) & 0xFF00)
+		cycle--;
+	address |= Fetch(mem, cycle) << 8;
+	address += X;
+	return address;
+#endif
+
 }
 
 // ABS + X : Page 넘어가는것 무시(그냥 하드웨어가 이렇게 생김)
@@ -1786,53 +1855,78 @@ WORD CPU::addr_mode_INDY(Memory& mem, int& cycle)
 
 void CPU::Execute_ADC(BYTE v)
 {
+#if USEOLD
 	BYTE oldA = A;
 	WORD Result = A + v + Flag.C;
 	A = (Result & 0xFF);
 
 	SetZeroNegative(A);
 	SetCarryFlag(Result);
- 	SetOverflow(oldA, A, v);
+	SetOverflow(oldA, A, v);
+#else
+	WORD result = A + v + Flag.C;
+
+	Flag.V = ((result ^ A) & (result ^ v) & 0x0080) != 0;
+	if (Flag.D)
+		result += ((((result + 0x66) ^ A ^ v) >> 3) & 0x22) * 3;
+	Flag.C = result > 0xFF;
+	A = result & 0xFF;
+	SetZeroNegative(A);
+#endif
 }
 
 void CPU::Execute_SBC(BYTE v)
 {
-	// This instruction subtracts the contents of a memory location to the accumulator 
-	// together with the not of the carry bit.If overflow occurs the carry bit is clear, 
-	// this enables multiple byte subtraction to be performed.
-// 	BYTE oldA = A;
-// 	WORD Result = A - v - (1-Flag.C);
-// 	A = (Result & 0xFF);
-// 
-// 	SetZeroNegative(A);
-// 	SetCarryFlagNegative(Result);
-// 	SetOverflow(oldA, A, v);
-
+#if USEOLD
 	Execute_ADC(~v);
+#else
+	v ^= 0xFF;
+	if (Flag.D)
+		v -= 0x0066;
+	WORD result = A + v + (Flag.C);
+	Flag.V = ((result ^ A) & (result ^ v) & 0x0080) != 0;
+	if (Flag.D)
+		result += ((((result + 0x66) ^ A ^ v) >> 3) & 0x22) * 3;
+	Flag.C = result > 0xFF;
+	A = result & 0xFF;
+	SetZeroNegative(A);
+#endif
 }
 
 void CPU::Execute_CMP(BYTE v)
 {
 	WORD t = A - v;
-	Flag.N = (t & FLAG_NEGATIVE) > 0;	// Set if bit 7 of the result is set
-	Flag.Z = A == v;					// Set if A = M
-	Flag.C = A >= v;					// Set if A >= M
+// 	Flag.N = (t & FLAG_NEGATIVE) > 0;	// Set if bit 7 of the result is set
+// 	Flag.Z = A == v;					// Set if A = M
+// 	Flag.C = A >= v;					// Set if A >= M
+
+	Flag.Z = ((A - v) & 0xFF) == 0;
+	Flag.N = ((A - v) & FLAG_NEGATIVE) != 0;
+	Flag.C = (A >= v) != 0;
 }
 
 void CPU::Execute_CPX(BYTE v)
 {
 	WORD t = X - v;
-	Flag.N = (t & FLAG_NEGATIVE) > 0;	// Set if bit 7 of the result is set
-	Flag.Z = X == v;					// Set if X = M
-	Flag.C = X >= v;					// Set if X >= M
+// 	Flag.N = (t & FLAG_NEGATIVE) > 0;	// Set if bit 7 of the result is set
+// 	Flag.Z = X == v;					// Set if X = M
+// 	Flag.C = X >= v;					// Set if X >= M
+
+	Flag.Z = ((X - v) & 0xFF) == 0;
+	Flag.N = ((X - v) & FLAG_NEGATIVE) != 0;
+	Flag.C = (X >= v) != 0;
 }
 
 void CPU::Execute_CPY(BYTE v)
 {
 	WORD t = Y - v;
-	Flag.N = (t & FLAG_NEGATIVE) > 0;	// Set if bit 7 of the result is set
-	Flag.Z = Y == v;					// Set if Y = M
-	Flag.C = Y >= v;					// Set if Y >= M
+// 	Flag.N = (t & FLAG_NEGATIVE) > 0;	// Set if bit 7 of the result is set
+// 	Flag.Z = Y == v;					// Set if Y = M
+// 	Flag.C = Y >= v;					// Set if Y >= M
+
+	Flag.Z = ((Y - v) & 0xFF) == 0;
+	Flag.N = ((Y - v) & FLAG_NEGATIVE) != 0;
+	Flag.C = (Y >= v) != 0;
 }
 
 void CPU::Execute_ASL(BYTE &v, int &cycle)
@@ -1894,6 +1988,7 @@ void CPU::Execute_BRANCH(bool v, bool condition, Memory &mem, int &cycle)
 	SBYTE offset = (SBYTE)Fetch(mem, cycle);
 	if (v == condition)
 	{
+#if USEOLD
 		// Page를 넘어가면 Cycle 증가
 		BYTE lo = PC & 0x00FF;
 		WORD t = lo + (SBYTE)offset;
@@ -1901,5 +1996,13 @@ void CPU::Execute_BRANCH(bool v, bool condition, Memory &mem, int &cycle)
 
 		PC += (SBYTE)offset;
 		cycle--;
+#else
+		if (offset & FLAG_NEGATIVE)
+			offset |= 0xFF00;  // jump backward
+		if (((PC & 0xFF) + offset) & 0xFF00)  // page crossing
+			cycle--;
+		PC += offset;
+		cycle--;
+#endif
 	}
 }

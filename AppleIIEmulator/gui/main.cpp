@@ -34,23 +34,23 @@ std::string format_string(const std::string fmt, ...)
 	return buffer;
 }
 
-
+int fontsize = 10;
 void DrawRegistor()
 {
 	std::string msga = format_string("REG A : %2X", appleplus.cpu.A);
-	DrawText(msga.c_str(), 10, 25, 20, WHITE);
+	DrawText(msga.c_str(), 10, 25, fontsize, WHITE);
 
 	std::string msgx = format_string("REG X : %2X", appleplus.cpu.X);
-	DrawText(msgx.c_str(), 10, 45, 20, WHITE);
+	DrawText(msgx.c_str(), 10, 45, fontsize, WHITE);
 
 	std::string msgy = format_string("REG Y : %2X", appleplus.cpu.Y);
-	DrawText(msgy.c_str(), 10, 65, 20, WHITE);
+	DrawText(msgy.c_str(), 10, 65, fontsize, WHITE);
 
 	std::string msgpc = format_string("PC : %4X", appleplus.cpu.PC);
-	DrawText(msgpc.c_str(), 10, 85, 20, WHITE);
+	DrawText(msgpc.c_str(), 10, 85, fontsize, WHITE);
 
 	std::string msgsp = format_string("SP : %2X", appleplus.cpu.SP);
-	DrawText(msgsp.c_str(), 10, 105, 20, WHITE);
+	DrawText(msgsp.c_str(), 10, 105, fontsize, WHITE);
 }
 
 
@@ -58,41 +58,41 @@ void DrawFlags()
 {
 	// FLAG
 	std::string flagc = format_string("0 : FLAG C : %2X", appleplus.cpu.Flag.C);
-	DrawText(flagc.c_str(), 10, 130, 20, MAGENTA);
+	DrawText(flagc.c_str(), 10, 130, fontsize, MAGENTA);
 
 	std::string flagz = format_string("1 : FLAG Z : %2X", appleplus.cpu.Flag.Z);
-	DrawText(flagz.c_str(), 10, 150, 20, MAGENTA);
+	DrawText(flagz.c_str(), 10, 150, fontsize, MAGENTA);
 
 	std::string flagi = format_string("2 : FLAG I : %2X", appleplus.cpu.Flag.I);
-	DrawText(flagi.c_str(), 10, 170, 20, MAGENTA);
+	DrawText(flagi.c_str(), 10, 170, fontsize, MAGENTA);
 
 	std::string flagd = format_string("3 : FLAG D : %2X", appleplus.cpu.Flag.D);
-	DrawText(flagd.c_str(), 10, 190, 20, MAGENTA);
+	DrawText(flagd.c_str(), 10, 190, fontsize, MAGENTA);
 
 	std::string flagb = format_string("4 : FLAG B : %2X", appleplus.cpu.Flag.B);
-	DrawText(flagb.c_str(), 10, 210, 20, MAGENTA);
+	DrawText(flagb.c_str(), 10, 210, fontsize, MAGENTA);
 
 	std::string flagu = format_string("5 : FLAG U : %2X", appleplus.cpu.Flag.Unused);
-	DrawText(flagu.c_str(), 10, 230, 20, MAGENTA);
+	DrawText(flagu.c_str(), 10, 230, fontsize, MAGENTA);
 
 	std::string flagv = format_string("6 : FLAG V : %2X", appleplus.cpu.Flag.V);
-	DrawText(flagv.c_str(), 10, 250, 20, MAGENTA);
+	DrawText(flagv.c_str(), 10, 250, fontsize, MAGENTA);
 
 	std::string flagn = format_string("7 : FLAG N : %2X", appleplus.cpu.Flag.N);
-	DrawText(flagn.c_str(), 10, 270, 20, MAGENTA);
+	DrawText(flagn.c_str(), 10, 270, fontsize, MAGENTA);
 }
 
 void DrawZeroPage()
 {
 	int xpos = 10;
-	int ypos = 600;
+	int ypos = 300;
 
 	for (int y = 0; y < 16; y++)
 		for (int x = 0; x < 16; x++)
 		{
 			int v = appleplus.mem.ReadByte(y*8 + x);
 			std::string msg = format_string("%2X", v);
-			DrawText(msg.c_str(), xpos + (x * 25), ypos+(y * 25), 20, WHITE);
+			DrawText(msg.c_str(), xpos + (x * 15), ypos+(y * 15), fontsize, WHITE);
 		}
 }
 
@@ -109,7 +109,7 @@ void DrawInstruction()
 	int i = 0;
 	for (iter = opcodestack.begin(); iter != opcodestack.end(); iter++, i++) 
 	{
-		DrawText(appleplus.cpu.GetInstName(*iter).c_str(), 10, 330 + (i * 20), 20, GREEN);
+		DrawText(appleplus.cpu.GetInstName(*iter).c_str(), 10, 330 + (i * 20), 15, GREEN);
 	}
 }
 
@@ -151,12 +151,12 @@ int main(void)
 		BeginDrawing();
 		ClearBackground(BLACK);
 
-		std::string f = format_string("FPS : %d", fps);
-		DrawText(f.c_str(), 10,300, 20, MAGENTA);
+// 		std::string f = format_string("FPS : %d", fps);
+// 		DrawText(f.c_str(), 10,300, 20, MAGENTA);
 
-		bool diskmotoron = appleplus.device.GetDiskMotorState();
-		std::string disk = format_string("DISK MOTOR : %s", diskmotoron ? "ON" : "OFF");
-		DrawText(disk.c_str(), 10, 320, 20, GREEN);
+// 		bool diskmotoron = appleplus.device.GetDiskMotorState();
+// 		std::string disk = format_string("DISK MOTOR : %s", diskmotoron ? "ON" : "OFF");
+// 		DrawText(disk.c_str(), 10, 320, 20, GREEN);
 
 		DrawRegistor();
 		DrawFlags();

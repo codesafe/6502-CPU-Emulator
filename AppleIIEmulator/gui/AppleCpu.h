@@ -22,7 +22,7 @@ class Memory;
 	Stack은 총 256 Byte
 */
 #define STACK_ADDRESS	0x0100
-#define STACK_POS		0xFF
+#define STACK_POS		0xFD
 #define PC_START		0xFFFC
 
 

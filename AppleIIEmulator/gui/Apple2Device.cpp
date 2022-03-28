@@ -8,24 +8,14 @@
 #include "raylib.h"
 
 
-BYTE PB0 = 0; // $C061 Push Button 0 (bit 7) / Open Apple
-BYTE PB1 = 0; // $C062 Push Button 1 (bit 7) / Solid Apple
-BYTE PB2 = 0; // $C063 Push Button 2 (bit 7) / shift mod !!!
+/////////////////////////////////////////////////////////////////////////// 
 
-// GC Position ranging from 0 (left) to 255 right
-float GCP[2] = { 127, 127 };
-// $C064 (GC0) and $C065 (GC1) Countdowns
-float GCC[2] = { 0 };
-// GC0 and GC1 Directions (left/down or right/up)
-int   GCD[2] = { 0 };
-// GC0 and GC1 Action (push or release)
-int   GCA[2] = { 0 };
-// Game Controller speed at which it goes to the edges
-BYTE GCActionSpeed = 8;
-// Game Controller speed at which it returns to center
-BYTE GCReleaseSpeed = 8;
-// $C070 the tick at which the GCs were reseted
-long long int GCCrigger;
+int LoResCache[24][40] = { 0 };
+int HiResCache[192][40] = { 0 };                                              // check which Hi-Res 7 dots needs redraw
+uint8_t previousBit[192][40] = { 0 };                                         // the last bit value of the byte before.
+uint8_t flashCycle = 0;                                                       // TEXT cursor flashes at 2Hz
+
+
 
 const int offsetGR[24] = {                                                    // helper for TEXT and GR video generation
   0x000, 0x080, 0x100, 0x180, 0x200, 0x280, 0x300, 0x380,                     // lines 0-7
@@ -59,9 +49,20 @@ const int offsetHGR[192] = {                                                  //
 	0x0350, 0x0750, 0x0B50, 0x0F50, 0x1350, 0x1750, 0x1B50, 0x1F50,             // lines 176-183
 	0x03D0, 0x07D0, 0x0BD0, 0x0FD0, 0x13D0, 0x17D0, 0x1BD0, 0x1FD0 };            // lines 184-191
 
-int HiResCache[192][40] = { 0 };                                              // check which Hi-Res 7 dots needs redraw
-uint8_t previousBit[192][40] = { 0 };                                         // the last bit value of the byte before.
-uint8_t flashCycle = 0;                                                       // TEXT cursor flashes at 2Hz
+
+const int color[16][3] = {                                                    // the 16 low res colors
+	{ 0,   0,   0	  }, { 226, 57,  86  }, { 28,  116, 205 }, { 126, 110, 173 },
+	{ 31,  129, 128 }, { 137, 130, 122 }, { 86,  168, 228 }, { 144, 178, 223 },
+	{ 151, 88,  34	}, { 234, 108, 21  }, { 158, 151, 143 }, { 255, 206, 240 },
+	{ 144, 192, 49	}, { 255, 253, 166 }, { 159, 210, 213 }, { 255, 255, 255 }
+};
+
+const int hcolor[16][3] = {                                                   // the high res colors (2 light levels)
+	{ 0,   0,   0   }, { 144, 192, 49  }, { 126, 110, 173 }, { 255, 255, 255 },
+	{ 0,   0,   0   }, { 234, 108, 21  }, { 86,  168, 228 }, { 255, 255, 255 },
+	{ 0,   0,   0   }, { 63,  55,	 86  }, { 72,  96,  25	}, { 255, 255, 255 },
+	{ 0,   0,   0   }, { 43,  84,	 114 }, { 117, 54,  10	}, { 255, 255, 255 }
+};
 
 
 Apple2Device::Apple2Device()
@@ -77,6 +78,11 @@ Apple2Device::~Apple2Device()
 
 void Apple2Device::Create()
 {
+	pixelGR = { 0, 0, 7, 4 };
+
+	colorMonitor = true;
+	zoomscale = 1;
+	tick = 0;
 	font.Create();
 
 	currentDrive = 0;
@@ -85,8 +91,20 @@ void Apple2Device::Create()
 	videoPage = 1;
 	hires_Mode = false;
 	keyboard = 0;
-	videoAddress = videoPage * 0x0400;
+	//videoAddress = videoPage * 0x0400;
 
+	// 패들 초기화
+	PB0 = 0;
+	PB1 = 0;
+	PB2 = 0;
+	GCP[0] = 127.0f; GCP[1] = 127.0f;
+	GCC[0] = 0; GCC[1] = 0;
+	GCD[0] = 0; GCD[1] = 0;
+	GCA[0] = 0; GCA[1] = 0;
+	GCActionSpeed = 8;
+	GCReleaseSpeed = 8;
+
+	// 스크린 백버퍼
 	backbuffer = new Color[SCREENSIZE_X * SCREENSIZE_Y];
 	ClearScreen();
 
@@ -96,6 +114,27 @@ void Apple2Device::Create()
 	renderImage.format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
 	renderImage.mipmaps = 1;
 	renderTexture = LoadTextureFromImage(renderImage);
+}
+
+void Apple2Device::resetPaddles()
+{
+	GCC[0] = GCP[0] * GCP[0];                                                     // initialize the countdown for both paddles
+	GCC[1] = GCP[1] * GCP[1];                                                     // to the square of their actuall values (positions)
+	GCCrigger = tick;                                                            // records the time this was done
+}
+
+BYTE Apple2Device::readPaddle(int pdl)
+{
+	const float GCFreq = 6.6f;                                                     // the speed at which the GC values decrease
+
+	GCC[pdl] -= (tick - GCCrigger) / GCFreq;                                     // decreases the countdown
+	if (GCC[pdl] <= 0)                                                            // timeout
+	{
+		GCC[pdl] = 0;
+		return 0;
+	}
+
+	return 0x80;                                                                  // not timeout, return something with the MSB set
 }
 
 
@@ -168,14 +207,14 @@ BYTE Apple2Device::SoftSwitch(Memory *mem, WORD address, BYTE value, bool WRT)
 
 		/////////////////////////////////////////////////////////////////////////////////	Joy Paddle ?
 
-// 		case 0xC061: return(PB0);                                                   // Push Button 0
-// 		case 0xC062: return(PB1);                                                   // Push Button 1
-// 		case 0xC063: return(PB2);                                                   // Push Button 2
-// 		case 0xC064: return(readPaddle(0));                                         // Paddle 0
-// 		case 0xC065: return(readPaddle(1));                                         // Paddle 1
-// 		case 0xC066: return(readPaddle(0));                                         // Paddle 2 -- not implemented
-// 		case 0xC067: return(readPaddle(1));                                         // Paddle 3 -- not implemented
-//		case 0xC070: resetPaddles(); break;                                         // paddle timer RST
+		case 0xC061: return(PB0);                                                   // Push Button 0
+		case 0xC062: return(PB1);                                                   // Push Button 1
+		case 0xC063: return(PB2);                                                   // Push Button 2
+		case 0xC064: return(readPaddle(0));                                         // Paddle 0
+		case 0xC065: return(readPaddle(1));                                         // Paddle 1
+		case 0xC066: return(readPaddle(0));                                         // Paddle 2 -- not implemented
+		case 0xC067: return(readPaddle(1));                                         // Paddle 3 -- not implemented
+		case 0xC070: resetPaddles(); break;                                         // paddle timer RST
 
 		/////////////////////////////////////////////////////////////////////////////////	DISK 2
 
@@ -213,17 +252,11 @@ BYTE Apple2Device::SoftSwitch(Memory *mem, WORD address, BYTE value, bool WRT)
 		// Shift Data Latch
 		case 0xC0EC:                                                                
 		{
-			// writting
-			if (disk[currentDrive].writeMode)
-				disk[currentDrive].data[disk[currentDrive].track * 0x1A00 + disk[currentDrive].nibble] = dLatch;
-			else
-			{
-				// reading
-				dLatch = disk[currentDrive].data[disk[currentDrive].track * 0x1A00 + disk[currentDrive].nibble];
-			}
-
-			// turn floppy of 1 nibble
-			disk[currentDrive].nibble = (disk[currentDrive].nibble + 1) % 0x1A00;                 
+			if (disk[currentDrive].writeMode)                                               // writting
+				disk[currentDrive].data[disk[currentDrive].track * 0x1A00 + disk[currentDrive].nibble] = dLatch;// good luck gcc
+			else                                                                      // reading
+				dLatch = disk[currentDrive].data[disk[currentDrive].track * 0x1A00 + disk[currentDrive].nibble];// easy peasy
+			disk[currentDrive].nibble = (disk[currentDrive].nibble + 1) % 0x1A00;                 // turn floppy of 1 nibble              
 		}
 		return(dLatch);
 
@@ -277,12 +310,14 @@ BYTE Apple2Device::SoftSwitch(Memory *mem, WORD address, BYTE value, bool WRT)
 		case 0xC089:
 		case 0xC08D: 
 			mem->LCBK2 = 0; mem->LCRD = 0; mem->LCWR |= mem->LCWFF; 
-			mem->LCWFF = !WRT; break;       // LC1WR
+			mem->LCWFF = !WRT; 
+			break;       // LC1WR
 
 		case 0xC08A:
 		case 0xC08E: 
 			mem->LCBK2 = 0; mem->LCRD = 0; mem->LCWR = 0; 
-			mem->LCWFF = 0;    break;       // ROMONLY1
+			mem->LCWFF = 0;    
+			break;       // ROMONLY1
 
 		case 0xC08B:
 		case 0xC08F: 
@@ -291,9 +326,8 @@ BYTE Apple2Device::SoftSwitch(Memory *mem, WORD address, BYTE value, bool WRT)
 			mem->LCWFF = !WRT; 
 			break;       // LC1RW
 	}
-	static int ticks = 0;
-	ticks++;
-	return (ticks % 256);
+	tick++;
+	return (tick % 256);
 }
 
 
@@ -322,9 +356,29 @@ void Apple2Device::ClearScreen()
 		}
 }
 
-void Apple2Device::DrawPoint(int x, int y)
+void Apple2Device::DrawPoint(int x, int y, int r, int g, int b)
 {
-	backbuffer[y * SCREENSIZE_X + x] = GREEN;
+	Color color;
+	if (colorMonitor)
+	{
+		color.r = r; color.g = g; color.b = b; color.a = 0xff;
+	}
+	else
+	{
+		float grayscale = (0.299f * r) + (0.587f * g) + (0.114f * b);
+		color.r = 0; color.g = (BYTE)grayscale; color.b = 0; color.a = 0xff;
+	}
+
+	backbuffer[y * SCREENSIZE_X + x] = color;
+}
+
+void Apple2Device::DrawRect(_RECT rect, int r, int g, int b)
+{
+	for (int y = 0; y < (int)rect.height; y++)
+		for (int x = 0; x < (int)rect.width; x++)
+		{
+			DrawPoint((int)rect.x + x, (int)rect.y + y, r, g, b);
+		}
 }
 
 int Apple2Device::GetScreenMode()
@@ -360,10 +414,6 @@ int Apple2Device::GetScreenMode()
 */
 void Apple2Device::Render(Memory &mem, int frame)
 {
-	int maxcolumn = SCREENTEXT_X;
-	int maxline = SCREENTEXT_Y;
-
-	ClearScreen();
 	int screenmode = GetScreenMode();
 
 	// video Page에 따라 Address가 달라짐
@@ -374,7 +424,39 @@ void Apple2Device::Render(Memory &mem, int frame)
 		// LoRes 저해상도
 		if (hires_Mode == false)
 		{
+			uint16_t vRamBase = videoPage * 0x0400;
+			uint8_t lastLine = mixedMode ? 20 : 24;
+			uint8_t glyph;                                                            // 2 blocks in GR
+			uint8_t colorIdx = 0;                                                     // to index the color arrays
 
+			// for each column
+			for (int col = 0; col < 40; col++) 
+			{
+				pixelGR.x = col * 7;
+				for (int line = 0; line < lastLine; line++) {                           // for each row
+					pixelGR.y = line * 8;                                                 // first block
+
+					glyph = mem.ReadByte(vRamBase + offsetGR[line] + col);                         // read video memory
+
+					if (LoResCache[line][col] != glyph || !flashCycle) 
+					{
+						LoResCache[line][col] = glyph;
+
+						colorIdx = glyph & 0x0F;                                              // first nibble
+// 						SDL_SetRenderDrawColor(rdr, color[colorIdx][0], color[colorIdx][1], color[colorIdx][2], SDL_ALPHA_OPAQUE);
+// 						SDL_RenderFillRect(rdr, &pixelGR);
+
+						DrawRect(pixelGR, color[colorIdx][0], color[colorIdx][1], color[colorIdx][2]);
+
+						pixelGR.y += 4;                                                       // second block
+						colorIdx = (glyph & 0xF0) >> 4;                                       // second nibble
+						//SDL_SetRenderDrawColor(rdr, color[colorIdx][0], color[colorIdx][1], color[colorIdx][2], SDL_ALPHA_OPAQUE);
+						//SDL_RenderFillRect(rdr, &pixelGR);
+
+						DrawRect(pixelGR, color[colorIdx][0], color[colorIdx][1], color[colorIdx][2]);
+					}
+				}
+			}
 		}
 		else
 		{
@@ -382,12 +464,16 @@ void Apple2Device::Render(Memory &mem, int frame)
 			WORD word;
 			BYTE bits[16], bit, pbit, colorSet, even;
 			// PAGE is 1 or 2
-			videoAddress = 0x2000 + videoPage * 0x2000;
+			videoAddress = videoPage * 0x2000;
 			uint8_t lastLine = mixedMode ? 160 : 192;
 			uint8_t colorIdx = 0;                                                     // to index the color arrays
 
-			for (int line = 0; line < lastLine; line++) {                             // for every line
-				for (int col = 0; col < 40; col += 2) {                                 // for every 7 horizontal dots
+			// for every line
+			for (int line = 0; line < lastLine; line++) 
+			{
+				// for every 7 horizontal dots
+				for (int col = 0; col < 40; col += 2) 
+				{
 					int x = col * 7;
 					even = 0;
 
@@ -402,16 +488,16 @@ void Apple2Device::Render(Memory &mem, int frame)
 						pbit = previousBit[line][col];                                      // the bit value of the left dot
 						bit = 0;                                                            // starting at 1st bit of 1st byte
 
-						while (bit < 15) {                                                  // until we reach bit7 of 2nd byte
-							if (bit == 7) {                                                   // moving into the second byte
+						while (bit < 15) 
+						{                                                  // until we reach bit7 of 2nd byte
+							if (bit == 7) 
+							{                                                   // moving into the second byte
 								colorSet = bits[15] * 4;                                        // update the color set
 								bit++;                                                          // skip bit 7
 							}
 							colorIdx = even + colorSet + (bits[bit] << 1) + (pbit);
-							//SDL_SetRenderDrawColor(rdr, hcolor[colorIdx][0], hcolor[colorIdx][1], hcolor[colorIdx][2], SDL_ALPHA_OPAQUE);
-							//SDL_RenderDrawPoint(rdr, x++, line);
 
-							DrawPoint(x++, line);
+							DrawPoint(x++, line, hcolor[colorIdx][0], hcolor[colorIdx][1], hcolor[colorIdx][2]);
 							pbit = bits[bit++];                                               // proceed to the next pixel
 							even = even ? 0 : 8;                                              // one pixel every two is darker
 						}
@@ -431,15 +517,18 @@ void Apple2Device::Render(Memory &mem, int frame)
 	// TEXT는 TEXT Only 그리고 Mixed에 모두 출력되어야 함
 	if (screenmode == TEXT_MODE || screenmode == LORES_MIX_MODE || screenmode == HIRES_MIX_MODE)
 	{
+// 		if(screenmode == TEXT_MODE)
+// 			ClearScreen();
+
 		videoAddress = videoPage * 0x0400;
 
 		// Text or Mixed
 		// Font 크기 7X8 / 40x20 글자
 		int linelimit = textMode ? 0 : 20;
 
-		for (int col = 0; col < maxcolumn; col++)
+		for (int col = 0; col < SCREENTEXT_X; col++)
 		{
-			for (int line = linelimit; line < maxline; line++)
+			for (int line = linelimit; line < SCREENTEXT_Y; line++)
 			{
 				// read video memory
 				BYTE glyph = mem.ReadByte(videoAddress + offsetGR[line] + col);
@@ -469,6 +558,9 @@ void Apple2Device::Render(Memory &mem, int frame)
 	}
 
 
+	/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
 	// Render Backbuffer
 	UnloadTexture(renderTexture);
 	renderTexture = LoadTextureFromImage(renderImage);
@@ -476,7 +568,21 @@ void Apple2Device::Render(Memory &mem, int frame)
 	Vector2 pos;
  	pos.x = 300;
  	pos.y = 10;
-	DrawTextureEx(renderTexture, pos, 0, 2, WHITE);
+	DrawTextureEx(renderTexture, pos, 0, zoomscale, WHITE);
+
+	if (++flashCycle == 30)
+		flashCycle = 0;
+
+	DrawCpuInfomation();
+}
+
+// Cpu 정보 Draw
+void Apple2Device::DrawCpuInfomation()
+{
+	// 레지스터
+	font.RenderFont(NULL, 0x41, 10, 10, false);
+
+	// Flag
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -506,10 +612,10 @@ int Apple2Device::insertFloppy(const char* filename, int drv)
 void Apple2Device::stepMotor(WORD address)
 {
 	static bool phases[2][4] = { 0 };                                             // phases states (for both drives)
-	static bool phasesB[2][4] = { 0 };                                             // phases states Before
-	static bool phasesBB[2][4] = { 0 };                                             // phases states Before Before
-	static int pIdx[2] = { 0 };                                             // phase index (for both drives)
-	static int pIdxB[2] = { 0 };                                             // phase index Before
+	static bool phasesB[2][4] = { 0 };                                            // phases states Before
+	static bool phasesBB[2][4] = { 0 };                                           // phases states Before Before
+	static int pIdx[2] = { 0 };                                                   // phase index (for both drives)
+	static int pIdxB[2] = { 0 };                                                  // phase index Before
 	static int halfTrackPos[2] = { 0 };
 
 	address &= 7;
@@ -520,7 +626,7 @@ void Apple2Device::stepMotor(WORD address)
 	pIdxB[currentDrive] = pIdx[currentDrive];
 	pIdx[currentDrive] = phase;
 
-	if (!(address & 1)) {                                                          // head not moving (PHASE x OFF)
+	if (!(address & 1)) {                                                         // head not moving (PHASE x OFF)
 		phases[currentDrive][phase] = false;
 		return;
 	}
@@ -533,7 +639,6 @@ void Apple2Device::stepMotor(WORD address)
 
 	phases[currentDrive][phase] = true;                                                 // update track#
 	disk[currentDrive].track = (halfTrackPos[currentDrive] + 1) / 2;
-	disk[currentDrive].nibble = 0;                                                      // not sure this is necessary ?
 }
 
 void Apple2Device::setDrv(int drv)
@@ -639,13 +744,23 @@ void Apple2Device::UpdateKeyBoard()
 		case KEY_SPACE:			keyboard = 0xA0;    break;
 		case KEY_ESCAPE:		keyboard = 0x9B;    break;             // ESC
 		case KEY_ENTER:			keyboard = 0x8D;    break;             // CR
+
+		// COLOR <--> GREEM
+		case KEY_F1 :
+			colorMonitor = !colorMonitor;
+			break;
+
+		// ZOOM
+		case KEY_F2:
+			zoomscale = zoomscale+1 > 3 ? 1 : zoomscale+1;
+			break;
 	}
 
 // 	if (key != 0)
 // 	{
 // 		printf("KEY : %x --> %x\n", key, keyboard);
 // 	}
-
+	
 }
 
 BYTE tries = 0;
@@ -664,6 +779,7 @@ void Apple2Device::InsetFloppy()
 
 //	insertFloppy("rom/DOS3.3.nib", 0);
 	insertFloppy("rom/LodeRunner.nib", 0);
+//	insertFloppy("rom/Pacman.nib", 0);
 	
 }
 

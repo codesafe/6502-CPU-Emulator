@@ -20,7 +20,7 @@ class Memory;
 	Stack은 총 256 Byte
 */
 #define STACK_ADDRESS	0x0100
-#define STACK_POS		0xFF
+#define STACK_POS		0xFD
 #define PC_START		0xFFFC
 
 
@@ -43,6 +43,15 @@ BYTE N : 1; //7: Negative
 #define FLAG_UNUSED					0b00100000
 #define FLAG_OVERFLOW				0b01000000
 #define FLAG_NEGATIVE				0b10000000
+
+#define CARRY 0x01
+#define ZERO  0x02
+#define INTR  0x04
+#define DECIM 0x08
+#define BREAK 0x10
+#define UNDEF 0x20
+#define OFLOW 0x40
+#define SIGN  0x80
 
 // Instruction
 /*
@@ -304,6 +313,7 @@ public:
 	~CPU();
 
 	void Reset();
+	void Reset(Memory& mem);
 	void SetPCAddress(WORD addr);
 	int Run(Memory& mem, int cycle);
 

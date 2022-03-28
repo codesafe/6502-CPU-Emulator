@@ -4,16 +4,6 @@
 #include "Predef.h"
 #include "Apple2Device.h"
 
-#define RAMSIZE  0xC000
-#define ROMSTART 0xD000
-#define ROMSIZE  0x3000
-#define LGCSTART 0xD000
-#define LGCSIZE  0x3000
-#define BK2START 0xD000
-#define BK2SIZE  0x1000
-#define SL6START 0xC600
-#define SL6SIZE  0x00FF
-
 class Memory
 {
 	public:

@@ -1,4 +1,5 @@
-﻿#include <cstdio>
+﻿/*
+#include <cstdio>
 #include <stdio.h>
 #include "m6502.h"
 
@@ -23,3 +24,5 @@ int main()
 
 	return 0;
 }
+
+*/
