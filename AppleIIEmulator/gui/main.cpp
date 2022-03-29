@@ -61,25 +61,25 @@ void DrawFlags()
 	DrawText(flagc.c_str(), 10, 130, fontsize, MAGENTA);
 
 	std::string flagz = format_string("1 : FLAG Z : %2X", appleplus.cpu.Flag.Z);
-	DrawText(flagz.c_str(), 10, 150, fontsize, MAGENTA);
+	DrawText(flagz.c_str(), 10, 145, fontsize, MAGENTA);
 
 	std::string flagi = format_string("2 : FLAG I : %2X", appleplus.cpu.Flag.I);
-	DrawText(flagi.c_str(), 10, 170, fontsize, MAGENTA);
+	DrawText(flagi.c_str(), 10, 160, fontsize, MAGENTA);
 
 	std::string flagd = format_string("3 : FLAG D : %2X", appleplus.cpu.Flag.D);
-	DrawText(flagd.c_str(), 10, 190, fontsize, MAGENTA);
+	DrawText(flagd.c_str(), 10, 175, fontsize, MAGENTA);
 
 	std::string flagb = format_string("4 : FLAG B : %2X", appleplus.cpu.Flag.B);
-	DrawText(flagb.c_str(), 10, 210, fontsize, MAGENTA);
+	DrawText(flagb.c_str(), 10, 190, fontsize, MAGENTA);
 
 	std::string flagu = format_string("5 : FLAG U : %2X", appleplus.cpu.Flag.Unused);
-	DrawText(flagu.c_str(), 10, 230, fontsize, MAGENTA);
+	DrawText(flagu.c_str(), 10, 205, fontsize, MAGENTA);
 
 	std::string flagv = format_string("6 : FLAG V : %2X", appleplus.cpu.Flag.V);
-	DrawText(flagv.c_str(), 10, 250, fontsize, MAGENTA);
+	DrawText(flagv.c_str(), 10, 220, fontsize, MAGENTA);
 
 	std::string flagn = format_string("7 : FLAG N : %2X", appleplus.cpu.Flag.N);
-	DrawText(flagn.c_str(), 10, 270, fontsize, MAGENTA);
+	DrawText(flagn.c_str(), 10, 235, fontsize, MAGENTA);
 }
 
 void DrawZeroPage()
@@ -143,9 +143,9 @@ int main(void)
 	while (!WindowShouldClose())
 	{
 		int fps = GetFPS();
-		long long p = (long long)(1023000.0 / fps);	// 1.023MHz
+		//long long p = (long long)(1023000.0 / fps);	// 1.023MHz
 
-		//long long p = 10000000;
+		long long p = 17050;
 		appleplus.Run((int)p);
 
 		BeginDrawing();
@@ -154,9 +154,9 @@ int main(void)
 // 		std::string f = format_string("FPS : %d", fps);
 // 		DrawText(f.c_str(), 10,300, 20, MAGENTA);
 
-// 		bool diskmotoron = appleplus.device.GetDiskMotorState();
-// 		std::string disk = format_string("DISK MOTOR : %s", diskmotoron ? "ON" : "OFF");
-// 		DrawText(disk.c_str(), 10, 320, 20, GREEN);
+		bool diskmotoron = appleplus.device.GetDiskMotorState();
+		std::string disk = format_string("DISK MOTOR : %s", diskmotoron ? "ON" : "OFF");
+		DrawText(disk.c_str(), 10, 280, 10, GREEN);
 
 		DrawRegistor();
 		DrawFlags();

@@ -27,7 +27,7 @@ void Apple2Machine::InitMachine()
 	mem.WriteByte(0x4D, 0xAA);   // Joust crashes if this memory location equals zero
 	mem.WriteByte(0xD0, 0xAA);   // Planetoids won't work if this memory location equals zero
 
-	device.Create();
+	device.Create(&cpu);
 	mem.device = &device;
 
 	UploadRom();
@@ -75,10 +75,16 @@ bool Apple2Machine::UploadRom()
 
 void Apple2Machine::Run(int cycle)
 {
+	if (device.resetMachine)
+	{
+		device.resetMachine = false;
+		cpu.Reboot(mem);
+	}
+
 	device.UpdateKeyBoard();
 	cpu.Run(mem, cycle);
 	while(device.UpdateFloppyDisk())
-		cpu.Run(mem, 5000);
+		cpu.Run(mem, 15000);
 }
 
 

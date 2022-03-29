@@ -35,9 +35,12 @@ struct drive
 class Apple2Device
 {
 public:
+
+	AudioStream stream;
+
+	bool resetMachine;
 	bool colorMonitor;
 	BYTE zoomscale;
-	int tick;
 
 	// 패들정보
 	BYTE PB0;  // $C061 Push Button 0 (bit 7) / Open Apple
@@ -73,6 +76,7 @@ public:
 	_RECT pixelGR;
 
 private:
+	CPU* cpu;
 	Color* backbuffer;	// Render Backbuffer
 	Texture2D renderTexture;
 	Image renderImage;
@@ -92,13 +96,12 @@ private:
 	void DrawPoint(int x, int y, int r, int g, int b);
 	void DrawRect(_RECT rect, int r, int g, int b);
 	int GetScreenMode();
-	void DrawCpuInfomation();
 
 public:
 	Apple2Device();
 	~Apple2Device();
 
-	void Create();
+	void Create(CPU* cpu);
 	BYTE SoftSwitch(Memory* mem, WORD address, BYTE value, bool WRT);
 	void PlaySound();
 	void Render(Memory& mem, int frame);

@@ -9,6 +9,7 @@
 
 CPU::CPU()
 {
+	tick = 0;
 	InitInstructionName();
 	Reset();
 	enableLog = false;
@@ -84,6 +85,18 @@ void CPU::Reset(Memory &mem)
 	PC = mem.ReadByte(0xFFFC) | (mem.ReadByte(0xFFFD) << 8);
 }
 
+void CPU::Reboot(Memory& mem)
+{
+	mem.WriteByte(0x3F4, 0);
+	PC = mem.ReadByte(0xFFFC) | (mem.ReadByte(0xFFFD) << 8);
+	SP = 0xFD;
+	Flag.I = 1;
+	Flag.Unused = 1;
+
+	mem.ResetRam();
+// 	mem.WriteByte(0x4D, 0xAA);   // Joust crashes if this memory location equals zero
+// 	mem.WriteByte(0xD0, 0xAA);   // Planetoids won't work if this memory location equals zero
+}
 void CPU::SetPCAddress(WORD addr)
 {
 	PC = addr;
@@ -263,14 +276,14 @@ WORD CPU::PopStackWord(Memory& mem, int& cycle)
 	return popWord;
 }
 
-unsigned long totalcount = 0;
 int CPU::Run(Memory &mem, int cycle)
 {
 	const int CyclesRequested = cycle;
 
-	totalcount++;
 	while (cycle > 0)
 	{
+		int prevcycle = cycle;
+
 		WORD prevPC = PC;
 		// 여기에서 cycle 하나 소모
 		BYTE inst = Fetch(mem, cycle);
@@ -281,11 +294,6 @@ int CPU::Run(Memory &mem, int cycle)
 			printf("A:[%2X] X:[%2X] Y:[%2X] PC:[%4X] ", A, X, Y, prevPC);
 			printf("INST : [%2X] / C:[%d] Z:[%d] I:[%d] D:[%d] B:[%d] U:[%d] V:[%d] N:[%d]\n", inst,
 				Flag.C, Flag.Z, Flag.I, Flag.D, Flag.B, Flag.Unused, Flag.V, Flag.N);
-		}
-
-		if (prevPC == 0xa938)
-		{
-			printf("");
 		}
 
 		switch (inst)
@@ -1747,6 +1755,8 @@ int CPU::Run(Memory &mem, int cycle)
 				throw -1;
 				break;
 		}
+
+		tick+= prevcycle-cycle;
 	}
 
 	return CyclesRequested - cycle;
@@ -1801,7 +1811,7 @@ WORD CPU::addr_mode_ABS(Memory& mem, int& cycle)
 // ABS + X
 WORD CPU::addr_mode_ABSX(Memory& mem, int& cycle)
 {
-#if 0
+#if 1
 	BYTE lo = Fetch(mem, cycle);
 	BYTE hi = Fetch(mem, cycle);
 	WORD t = lo + X;
@@ -1888,17 +1898,20 @@ WORD CPU::addr_mode_INDY(Memory& mem, int& cycle)
 
 void CPU::Execute_ADC(BYTE v)
 {
-#if USEOLD
+#if !USEOLD
 	BYTE oldA = A;
 	WORD Result = A + v + Flag.C;
+	// Decimal mode
+	if (Flag.D)
+		Result += ((((Result + 0x66) ^ A ^ v) >> 3) & 0x22) * 3;
 	A = (Result & 0xFF);
-
 	SetZeroNegative(A);
 	SetCarryFlag(Result);
  	SetOverflow(oldA, A, v);
 #else
-	WORD result = A + v + Flag.C;
+	// Decimal mode 무시하면 Lode runner에서 점수 Hex로 나옴
 
+	WORD result = A + v + Flag.C;
 	Flag.V = ((result ^ A) & (result ^ v) & 0x0080) != 0;
 	if (Flag.D)
 		result += ((((result + 0x66) ^ A ^ v) >> 3) & 0x22) * 3;
@@ -1910,7 +1923,7 @@ void CPU::Execute_ADC(BYTE v)
 
 void CPU::Execute_SBC(BYTE v)
 {
-#if USEOLD
+#if !USEOLD
 	Execute_ADC(~v);
 #else
 	v ^= 0xFF;
@@ -2021,7 +2034,7 @@ void CPU::Execute_BRANCH(bool v, bool condition, Memory &mem, int &cycle)
 	SBYTE offset = (SBYTE)Fetch(mem, cycle);
 	if (v == condition)
 	{
-#if USEOLD
+#if !USEOLD
 		// Page를 넘어가면 Cycle 증가
 		BYTE lo = PC & 0x00FF;
 		WORD t = lo + (SBYTE)offset;

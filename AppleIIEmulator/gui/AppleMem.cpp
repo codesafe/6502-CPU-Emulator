@@ -136,3 +136,8 @@ void Memory::UpLoadToRom(BYTE* code)
 {
 	memcpy(rom, code, ROMSIZE);
 }
+
+void Memory::ResetRam()
+{
+	memset(ram, 0, sizeof(ram));
+}

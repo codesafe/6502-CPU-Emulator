@@ -7,6 +7,9 @@
 #include "AppleFont.h"
 #include "raylib.h"
 
+#define audioBufferSize 4096                                                    // found to be large enought
+short audioBuffer[2][audioBufferSize] = { 0 };                                  // see in main() for more details
+
 
 /////////////////////////////////////////////////////////////////////////// 
 
@@ -14,7 +17,6 @@ int LoResCache[24][40] = { 0 };
 int HiResCache[192][40] = { 0 };                                              // check which Hi-Res 7 dots needs redraw
 uint8_t previousBit[192][40] = { 0 };                                         // the last bit value of the byte before.
 uint8_t flashCycle = 0;                                                       // TEXT cursor flashes at 2Hz
-
 
 
 const int offsetGR[24] = {                                                    // helper for TEXT and GR video generation
@@ -74,15 +76,18 @@ Apple2Device::~Apple2Device()
 {
 	if (backbuffer != NULL)
 		delete[] backbuffer;
+
+	CloseAudioDevice();
 }
 
-void Apple2Device::Create()
+void Apple2Device::Create(CPU* cpu)
 {
-	pixelGR = { 0, 0, 7, 4 };
+	this->cpu = cpu;
 
+	pixelGR = { 0, 0, 7, 4 };
+	resetMachine = false;
 	colorMonitor = true;
-	zoomscale = 1;
-	tick = 0;
+	zoomscale = 3;
 	font.Create();
 
 	currentDrive = 0;
@@ -114,20 +119,38 @@ void Apple2Device::Create()
 	renderImage.format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
 	renderImage.mipmaps = 1;
 	renderTexture = LoadTextureFromImage(renderImage);
+
+
+	for (int i = 0; i < audioBufferSize; i++) 
+	{                                   
+		// two audio buffers,
+		audioBuffer[0][i] = 40000;// one used when SPKR is true
+		audioBuffer[1][i] = -40000;// the other when SPKR is false
+
+		//audioBuffer[0][i] = 4000;
+		//audioBuffer[1][i] = 4000;
+
+	}
+
+	InitAudioDevice();
+	SetAudioStreamBufferSizeDefault(audioBufferSize);
+	stream = LoadAudioStream(96000, 8, 1);
+	//stream = LoadAudioStream(44100, 8, 1);
+	PlayAudioStream(stream);
 }
 
 void Apple2Device::resetPaddles()
 {
-	GCC[0] = GCP[0] * GCP[0];                                                     // initialize the countdown for both paddles
-	GCC[1] = GCP[1] * GCP[1];                                                     // to the square of their actuall values (positions)
-	GCCrigger = tick;                                                            // records the time this was done
+	GCC[0] = GCP[0] * GCP[0]; // initialize the countdown for both paddles
+	GCC[1] = GCP[1] * GCP[1]; // to the square of their actuall values (positions)
+	GCCrigger = cpu->tick;	// records the time this was done
 }
 
 BYTE Apple2Device::readPaddle(int pdl)
 {
 	const float GCFreq = 6.6f;                                                     // the speed at which the GC values decrease
 
-	GCC[pdl] -= (tick - GCCrigger) / GCFreq;                                     // decreases the countdown
+	GCC[pdl] -= (cpu->tick - GCCrigger) / GCFreq;                                     // decreases the countdown
 	if (GCC[pdl] <= 0)                                                            // timeout
 	{
 		GCC[pdl] = 0;
@@ -152,6 +175,8 @@ BYTE Apple2Device::SoftSwitch(Memory *mem, WORD address, BYTE value, bool WRT)
 		case 0xC010: 
 			keyboard &= 0x7F; 
 			return(keyboard);
+
+		///////////////////////////////////////////////////////////////////////////////// Speaker
 
 		case 0xC020: // TAPEOUT (shall we listen it ? - try SAVE from applesoft)
 		case 0xC030: // SPEAKER
@@ -326,25 +351,8 @@ BYTE Apple2Device::SoftSwitch(Memory *mem, WORD address, BYTE value, bool WRT)
 			mem->LCWFF = !WRT; 
 			break;       // LC1RW
 	}
-	tick++;
-	return (tick % 256);
-}
 
-
-
-void Apple2Device::PlaySound()
-{
-	static long long int lastTick = 0LL;
-	static bool SPKR = false;                                                     // $C030 Speaker toggle
-
-// 	if (!muted) 
-// 	{
-// 		SPKR = !SPKR;                                                               // toggle speaker state
-// 		Uint32 length = (ticks - lastTick) / 10.65625;                              // 1023000Hz / 96000Hz = 10.65625
-// 		lastTick = ticks;
-// 		if (length > audioBufferSize) length = audioBufferSize;
-// 		SDL_QueueAudio(audioDevice, audioBuffer[SPKR], length | 1);                 // | 1 TO HEAR HIGH FREQ SOUNDS
-// 	}
+	return (cpu->tick % 256);
 }
 
 void Apple2Device::ClearScreen()
@@ -441,18 +449,11 @@ void Apple2Device::Render(Memory &mem, int frame)
 					if (LoResCache[line][col] != glyph || !flashCycle) 
 					{
 						LoResCache[line][col] = glyph;
-
 						colorIdx = glyph & 0x0F;                                              // first nibble
-// 						SDL_SetRenderDrawColor(rdr, color[colorIdx][0], color[colorIdx][1], color[colorIdx][2], SDL_ALPHA_OPAQUE);
-// 						SDL_RenderFillRect(rdr, &pixelGR);
-
 						DrawRect(pixelGR, color[colorIdx][0], color[colorIdx][1], color[colorIdx][2]);
 
 						pixelGR.y += 4;                                                       // second block
 						colorIdx = (glyph & 0xF0) >> 4;                                       // second nibble
-						//SDL_SetRenderDrawColor(rdr, color[colorIdx][0], color[colorIdx][1], color[colorIdx][2], SDL_ALPHA_OPAQUE);
-						//SDL_RenderFillRect(rdr, &pixelGR);
-
 						DrawRect(pixelGR, color[colorIdx][0], color[colorIdx][1], color[colorIdx][2]);
 					}
 				}
@@ -573,16 +574,6 @@ void Apple2Device::Render(Memory &mem, int frame)
 	if (++flashCycle == 30)
 		flashCycle = 0;
 
-	DrawCpuInfomation();
-}
-
-// Cpu 정보 Draw
-void Apple2Device::DrawCpuInfomation()
-{
-	// 레지스터
-	font.RenderFont(NULL, 0x41, 10, 10, false);
-
-	// Flag
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -754,6 +745,11 @@ void Apple2Device::UpdateKeyBoard()
 		case KEY_F2:
 			zoomscale = zoomscale+1 > 3 ? 1 : zoomscale+1;
 			break;
+
+		// RESET
+		case KEY_F10:
+			resetMachine = true;
+			break;
 	}
 
 // 	if (key != 0)
@@ -771,19 +767,42 @@ bool Apple2Device::UpdateFloppyDisk()
 	return disk[currentDrive].motorOn && ++tries;
 }
 
-
 void Apple2Device::InsetFloppy()
 {
 	memset(&disk[0], 0, sizeof(drive));
 	memset(&disk[1], 0, sizeof(drive));
 
-//	insertFloppy("rom/DOS3.3.nib", 0);
-	insertFloppy("rom/LodeRunner.nib", 0);
+	insertFloppy("rom/DOS3.3.nib", 0);
+//	insertFloppy("rom/LodeRunner.nib", 0);
 //	insertFloppy("rom/Pacman.nib", 0);
-	
+//	insertFloppy("rom/karateka.nib", 0);
+//	insertFloppy("rom/Ultima4-1.nib", 0);
+//	insertFloppy("rom/Ultima5-1.nib", 0);
 }
 
 bool Apple2Device::GetDiskMotorState()
 {
 	return disk[currentDrive].motorOn;
+}
+
+void Apple2Device::PlaySound()
+{
+	static long long int lastTick = 0LL;
+	static bool SPKR = false; // $C030 Speaker toggle
+
+	//if (!muted) 
+	{
+		SPKR = !SPKR; // toggle speaker state
+		unsigned int length = (unsigned int)((cpu->tick - lastTick) / 10.65625f); // 1023000Hz / 96000Hz = 10.65625
+		//unsigned int length = (unsigned int)((cpu->tick - lastTick) / 23.197278f); // 1023000Hz / 44100Hz = 23.197278
+		
+		lastTick = cpu->tick;
+		if (length > audioBufferSize)
+			length = audioBufferSize;
+
+		//length = audioBufferSize;
+		printf("--> %d : %d\n", SPKR, length);
+		//SDL_QueueAudio(audioDevice, audioBuffer[SPKR], length | 1);                 // | 1 TO HEAR HIGH FREQ SOUNDS
+		UpdateAudioStream(stream, audioBuffer[SPKR], length | 1);
+	}
 }

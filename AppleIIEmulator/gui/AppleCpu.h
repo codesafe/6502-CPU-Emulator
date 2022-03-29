@@ -285,6 +285,8 @@ private:
 	void InitInstructionName();
 
 public:
+	long long tick;
+
 	// Registor
 	BYTE	A;		// Accumulator
 	BYTE	X;		// Index Registor
@@ -311,6 +313,8 @@ public:
 
 	void Reset();
 	void Reset(Memory& mem);
+	void Reboot(Memory& mem);
+
 	void SetPCAddress(WORD addr);
 	int Run(Memory& mem, int cycle);
 

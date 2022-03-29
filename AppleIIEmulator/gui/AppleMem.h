@@ -42,6 +42,7 @@ class Memory
 		void UpLoadProgram(int startPos, BYTE *code, int codesize);
 
 		void UpLoadToRom(BYTE* code);
+		void ResetRam();
 };
 
 
