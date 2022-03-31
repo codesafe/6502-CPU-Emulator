@@ -6,10 +6,12 @@
 #include "Apple2device.h"
 #include "AppleFont.h"
 #include "raylib.h"
+#include "SDL.h"
+
 
 #define audioBufferSize 4096                                                    // found to be large enought
 short audioBuffer[2][audioBufferSize] = { 0 };                                  // see in main() for more details
-
+SDL_AudioDeviceID audioDevice;
 
 /////////////////////////////////////////////////////////////////////////// 
 
@@ -77,7 +79,7 @@ Apple2Device::~Apple2Device()
 	if (backbuffer != NULL)
 		delete[] backbuffer;
 
-	CloseAudioDevice();
+	SDL_AudioQuit();
 }
 
 void Apple2Device::Create(CPU* cpu)
@@ -121,22 +123,20 @@ void Apple2Device::Create(CPU* cpu)
 	renderTexture = LoadTextureFromImage(renderImage);
 
 
-	for (int i = 0; i < audioBufferSize; i++) 
-	{                                   
-		// two audio buffers,
-		audioBuffer[0][i] = 40000;// one used when SPKR is true
-		audioBuffer[1][i] = -40000;// the other when SPKR is false
+	// SOUND¸¸ SDL
+	if (SDL_Init(SDL_INIT_AUDIO) < 0)
+		printf("failed to initialize SDL2 : %s", SDL_GetError());
 
-		//audioBuffer[0][i] = 4000;
-		//audioBuffer[1][i] = 4000;
+	SDL_AudioSpec desired = { 96000, AUDIO_S8, 1, 0, 4096, 0, 0, NULL, NULL };
+	audioDevice = SDL_OpenAudioDevice(NULL, 0, &desired, NULL, SDL_FALSE);
+	SDL_PauseAudioDevice(audioDevice, false);
 
+	for (int i = 0; i < audioBufferSize; i++)
+	{
+		audioBuffer[0][i] = 4;
+		audioBuffer[1][i] = -4;
 	}
 
-	InitAudioDevice();
-	SetAudioStreamBufferSizeDefault(audioBufferSize);
-	stream = LoadAudioStream(96000, 8, 1);
-	//stream = LoadAudioStream(44100, 8, 1);
-	PlayAudioStream(stream);
 }
 
 void Apple2Device::resetPaddles()
@@ -176,11 +176,14 @@ BYTE Apple2Device::SoftSwitch(Memory *mem, WORD address, BYTE value, bool WRT)
 			keyboard &= 0x7F; 
 			return(keyboard);
 
+		// TAPEOUT??
+		case 0xC020:
+			break;
+
 		///////////////////////////////////////////////////////////////////////////////// Speaker
 
-		case 0xC020: // TAPEOUT (shall we listen it ? - try SAVE from applesoft)
 		case 0xC030: // SPEAKER
-		case 0xC033: 
+		//case 0xC033: 
 			PlaySound(); 
 			break; // apple invader uses $C033 to output sound !
 
@@ -674,7 +677,6 @@ void Apple2Device::UpdateKeyBoard()
 // 		case KEY_X:            keyboard = 0xD8;   break;
 // 		case KEY_Y:            keyboard = 0xD9;   break;
 // 		case KEY_Z:            keyboard = 0xDA;   break;
-
 		case KEY_A:
 		case KEY_B:
 		case KEY_C:
@@ -788,21 +790,17 @@ bool Apple2Device::GetDiskMotorState()
 void Apple2Device::PlaySound()
 {
 	static long long int lastTick = 0LL;
-	static bool SPKR = false; // $C030 Speaker toggle
+	static bool SPKR = false;
 
 	//if (!muted) 
 	{
-		SPKR = !SPKR; // toggle speaker state
+		SPKR = !SPKR;
 		unsigned int length = (unsigned int)((cpu->tick - lastTick) / 10.65625f); // 1023000Hz / 96000Hz = 10.65625
-		//unsigned int length = (unsigned int)((cpu->tick - lastTick) / 23.197278f); // 1023000Hz / 44100Hz = 23.197278
 		
 		lastTick = cpu->tick;
 		if (length > audioBufferSize)
 			length = audioBufferSize;
 
-		//length = audioBufferSize;
-		printf("--> %d : %d\n", SPKR, length);
-		//SDL_QueueAudio(audioDevice, audioBuffer[SPKR], length | 1);                 // | 1 TO HEAR HIGH FREQ SOUNDS
-		UpdateAudioStream(stream, audioBuffer[SPKR], length | 1);
+		SDL_QueueAudio(audioDevice, audioBuffer[SPKR], length | 1);                 // | 1 TO HEAR HIGH FREQ SOUNDS
 	}
 }
