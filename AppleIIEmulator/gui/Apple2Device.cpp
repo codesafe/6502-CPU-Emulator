@@ -9,16 +9,12 @@
 #include "SDL.h"
 
 
-#define audioBufferSize 4096                                                    // found to be large enought
-short audioBuffer[2][audioBufferSize] = { 0 };                                  // see in main() for more details
-SDL_AudioDeviceID audioDevice;
-
 /////////////////////////////////////////////////////////////////////////// 
 
 int LoResCache[24][40] = { 0 };
 int HiResCache[192][40] = { 0 };                                              // check which Hi-Res 7 dots needs redraw
-uint8_t previousBit[192][40] = { 0 };                                         // the last bit value of the byte before.
-uint8_t flashCycle = 0;                                                       // TEXT cursor flashes at 2Hz
+BYTE previousBit[192][40] = { 0 };                                         // the last bit value of the byte before.
+BYTE flashCycle = 0;                                                       // TEXT cursor flashes at 2Hz
 
 
 const int offsetGR[24] = {                                                    // helper for TEXT and GR video generation
@@ -92,7 +88,14 @@ void Apple2Device::Create(CPU* cpu)
 	zoomscale = 3;
 	font.Create();
 
+	silence = false;
+	speaker = false;
+	speakerLastTick = 0;
+	volume = 5;
+	
+	updatedrive = 0;
 	currentDrive = 0;
+
 	textMode = true;
 	mixedMode = false;
 	videoPage = 1;
@@ -129,12 +132,12 @@ void Apple2Device::Create(CPU* cpu)
 
 	SDL_AudioSpec desired = { 96000, AUDIO_S8, 1, 0, 4096, 0, 0, NULL, NULL };
 	audioDevice = SDL_OpenAudioDevice(NULL, 0, &desired, NULL, SDL_FALSE);
-	SDL_PauseAudioDevice(audioDevice, false);
+	SDL_PauseAudioDevice(audioDevice, silence);
 
-	for (int i = 0; i < audioBufferSize; i++)
+	for (int i = 0; i < AUDIOBUFFERSIZE; i++)
 	{
-		audioBuffer[0][i] = 4;
-		audioBuffer[1][i] = -4;
+		audioBuffer[0][i] = volume;
+		audioBuffer[1][i] = -volume;
 	}
 
 }
@@ -148,18 +151,22 @@ void Apple2Device::resetPaddles()
 
 BYTE Apple2Device::readPaddle(int pdl)
 {
-	const float GCFreq = 6.6f;                                                     // the speed at which the GC values decrease
+	// the speed at which the GC values decrease
+	const float GCFreq = 6.6f;
 
-	GCC[pdl] -= (cpu->tick - GCCrigger) / GCFreq;                                     // decreases the countdown
-	if (GCC[pdl] <= 0)                                                            // timeout
+	// decreases the countdown
+	GCC[pdl] -= (cpu->tick - GCCrigger) / GCFreq;
+
+	// timeout
+	if (GCC[pdl] <= 0)
 	{
 		GCC[pdl] = 0;
 		return 0;
 	}
 
-	return 0x80;                                                                  // not timeout, return something with the MSB set
+	// not timeout, return something with the MSB set
+	return 0x80;
 }
-
 
 BYTE Apple2Device::SoftSwitch(Memory *mem, WORD address, BYTE value, bool WRT)
 {
@@ -185,7 +192,7 @@ BYTE Apple2Device::SoftSwitch(Memory *mem, WORD address, BYTE value, bool WRT)
 		case 0xC030: // SPEAKER
 		//case 0xC033: 
 			PlaySound(); 
-			break; // apple invader uses $C033 to output sound !
+			break;
 
 		///////////////////////////////////////////////////////////////////////////////// Graphics
 
@@ -214,12 +221,12 @@ BYTE Apple2Device::SoftSwitch(Memory *mem, WORD address, BYTE value, bool WRT)
 		// Page 1
 		case 0xC054: 
 			videoPage = 1;
-			printf("Video Page 1\n");
+			//printf("Video Page 1\n");
 			break;
 		// Page 2
 		case 0xC055: 
 			videoPage = 2;
-			printf("Video Page 2\n");
+			//printf("Video Page 2\n");
 			break;
 
 		// HiRes off
@@ -253,7 +260,9 @@ BYTE Apple2Device::SoftSwitch(Memory *mem, WORD address, BYTE value, bool WRT)
 		case 0xC0E4:
 		case 0xC0E5:
 		case 0xC0E6:
-		case 0xC0E7: stepMotor(address); break;                                     // MOVE DRIVE HEAD
+		case 0xC0E7: 
+			stepMotor(address); 
+			break; // MOVE DRIVE HEAD
 
 		// MOTOR OFF
 		case 0xCFFF:
@@ -436,9 +445,9 @@ void Apple2Device::Render(Memory &mem, int frame)
 		if (hires_Mode == false)
 		{
 			uint16_t vRamBase = videoPage * 0x0400;
-			uint8_t lastLine = mixedMode ? 20 : 24;
-			uint8_t glyph;                                                            // 2 blocks in GR
-			uint8_t colorIdx = 0;                                                     // to index the color arrays
+			BYTE lastLine = mixedMode ? 20 : 24;
+			BYTE glyph;                                                            // 2 blocks in GR
+			BYTE colorIdx = 0;                                                     // to index the color arrays
 
 			// for each column
 			for (int col = 0; col < 40; col++) 
@@ -452,7 +461,9 @@ void Apple2Device::Render(Memory &mem, int frame)
 					if (LoResCache[line][col] != glyph || !flashCycle) 
 					{
 						LoResCache[line][col] = glyph;
-						colorIdx = glyph & 0x0F;                                              // first nibble
+
+						// first nibble(4bit) 1/2 Byte
+						colorIdx = glyph & 0x0F;
 						DrawRect(pixelGR, color[colorIdx][0], color[colorIdx][1], color[colorIdx][2]);
 
 						pixelGR.y += 4;                                                       // second block
@@ -469,10 +480,9 @@ void Apple2Device::Render(Memory &mem, int frame)
 			BYTE bits[16], bit, pbit, colorSet, even;
 			// PAGE is 1 or 2
 			videoAddress = videoPage * 0x2000;
-			uint8_t lastLine = mixedMode ? 160 : 192;
-			uint8_t colorIdx = 0;                                                     // to index the color arrays
+			BYTE lastLine = mixedMode ? 160 : 192;
+			BYTE colorIdx = 0;                                                     // to index the color arrays
 
-			// for every line
 			for (int line = 0; line < lastLine; line++) 
 			{
 				// for every 7 horizontal dots
@@ -564,7 +574,6 @@ void Apple2Device::Render(Memory &mem, int frame)
 
 	/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-
 	// Render Backbuffer
 	UnloadTexture(renderTexture);
 	renderTexture = LoadTextureFromImage(renderImage);
@@ -620,7 +629,8 @@ void Apple2Device::stepMotor(WORD address)
 	pIdxB[currentDrive] = pIdx[currentDrive];
 	pIdx[currentDrive] = phase;
 
-	if (!(address & 1)) {                                                         // head not moving (PHASE x OFF)
+	if (!(address & 1)) 
+	{                                                         // head not moving (PHASE x OFF)
 		phases[currentDrive][phase] = false;
 		return;
 	}
@@ -748,6 +758,11 @@ void Apple2Device::UpdateKeyBoard()
 			zoomscale = zoomscale+1 > 3 ? 1 : zoomscale+1;
 			break;
 
+		// MUTE Speaker
+		case KEY_F3:
+			silence = !silence;
+			break;
+
 		// RESET
 		case KEY_F10:
 			resetMachine = true;
@@ -761,12 +776,14 @@ void Apple2Device::UpdateKeyBoard()
 	
 }
 
-BYTE tries = 0;
 // 플로피 디스크 업데이트
 bool Apple2Device::UpdateFloppyDisk()
 {
-	// until motor is off or i reaches 255+1=0
-	return disk[currentDrive].motorOn && ++tries;
+	// Floppy motor가 off이거나 updatedrive이 0이되면 끝
+	if (disk[currentDrive].motorOn == false || updatedrive++ == 0)
+		return false;
+	else
+		return true;
 }
 
 void Apple2Device::InsetFloppy()
@@ -774,10 +791,10 @@ void Apple2Device::InsetFloppy()
 	memset(&disk[0], 0, sizeof(drive));
 	memset(&disk[1], 0, sizeof(drive));
 
-	insertFloppy("rom/DOS3.3.nib", 0);
+//	insertFloppy("rom/DOS3.3.nib", 0);
 //	insertFloppy("rom/LodeRunner.nib", 0);
 //	insertFloppy("rom/Pacman.nib", 0);
-//	insertFloppy("rom/karateka.nib", 0);
+	insertFloppy("rom/karateka.nib", 0);
 //	insertFloppy("rom/Ultima4-1.nib", 0);
 //	insertFloppy("rom/Ultima5-1.nib", 0);
 }
@@ -789,18 +806,16 @@ bool Apple2Device::GetDiskMotorState()
 
 void Apple2Device::PlaySound()
 {
-	static long long int lastTick = 0LL;
-	static bool SPKR = false;
-
-	//if (!muted) 
+	if (!silence)
 	{
-		SPKR = !SPKR;
-		unsigned int length = (unsigned int)((cpu->tick - lastTick) / 10.65625f); // 1023000Hz / 96000Hz = 10.65625
+		speaker = !speaker;
+		// 1023000Hz / 96000Hz = 10.65625
+		unsigned int length = (unsigned int)((cpu->tick - speakerLastTick) / 10.65625f);
 		
-		lastTick = cpu->tick;
-		if (length > audioBufferSize)
-			length = audioBufferSize;
+		speakerLastTick = cpu->tick;
+		if (length > AUDIOBUFFERSIZE)
+			length = AUDIOBUFFERSIZE;
 
-		SDL_QueueAudio(audioDevice, audioBuffer[SPKR], length | 1);                 // | 1 TO HEAR HIGH FREQ SOUNDS
+		SDL_QueueAudio(audioDevice, audioBuffer[speaker], length | 1);
 	}
 }

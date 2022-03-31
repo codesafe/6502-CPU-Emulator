@@ -83,6 +83,15 @@ private:
 
 	AppleFont font;
 	drive disk[2];
+	BYTE updatedrive;
+
+	short audioBuffer[2][AUDIOBUFFERSIZE];
+	unsigned int audioDevice;
+
+	bool silence;
+	int volume;
+	bool speaker;
+	long long int speakerLastTick;
 
 	void resetPaddles();
 	BYTE readPaddle(int pdl);

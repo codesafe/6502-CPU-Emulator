@@ -46,4 +46,6 @@
 #define HIRES_MODE		3
 #define HIRES_MIX_MODE	4
 
+#define AUDIOBUFFERSIZE		4096
+
 #endif
