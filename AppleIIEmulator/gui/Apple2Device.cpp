@@ -151,6 +151,7 @@ void Apple2Device::resetPaddles()
 
 BYTE Apple2Device::readPaddle(int pdl)
 {
+/*
 	// the speed at which the GC values decrease
 	const float GCFreq = 6.6f;
 
@@ -163,6 +164,13 @@ BYTE Apple2Device::readPaddle(int pdl)
 		GCC[pdl] = 0;
 		return 0;
 	}
+*/
+
+	if(keyboard == 0x88 && pdl == 0)
+		return 1;
+
+	if (keyboard == 0x95 && pdl == 0)
+		return 1;
 
 	// not timeout, return something with the MSB set
 	return 0x80;
@@ -242,14 +250,65 @@ BYTE Apple2Device::SoftSwitch(Memory *mem, WORD address, BYTE value, bool WRT)
 
 		/////////////////////////////////////////////////////////////////////////////////	Joy Paddle ?
 
-		case 0xC061: return(PB0);                                                   // Push Button 0
+/*
+	https://apple2.org.za/gswv/a2zine/faqs/csa2pfaq.html
+
+	These are actually the first two game Pushbutton inputs (PB0
+	and PB1) which are borrowed by the Open Apple and Closed Apple
+	keys. Bit 7 is set (=1) in these locations if the game switch or
+	corresponding key is pressed.
+
+	PB2 =      $C063 ;game Pushbutton 2 (read)
+	This input has an option to be connected to the shift key on
+	the keyboard. (See info on the 'shift key mod'.)
+
+	PADDLE0 =  $C064 ;bit 7 = status of pdl-0 timer (read)
+	PADDLE1 =  $C065 ;bit 7 = status of pdl-1 timer (read)
+	PADDLE2 =  $C066 ;bit 7 = status of pdl-2 timer (read)
+	PADDLE3 =  $C067 ;bit 7 = status of pdl-3 timer (read)
+	PDLTRIG =  $C070 ;trigger paddles
+	Read this to start paddle countdown, then time the period until
+	$C064-$C067 bit 7 becomes set to determine the paddle position.
+	This takes up to three milliseconds if the paddle is at its maximum
+	extreme (reading of 255 via the standard firmware routine).
+
+	SETIOUDIS= $C07E ;enable DHIRES & disable $C058-5F (W)
+	CLRIOUDIS= $C07E ;disable DHIRES & enable $C058-5F (W)
+
+*/
+		// Push Button 0
+		case 0xC061: 
+		{
+			if (keyboard == 0xA0)
+				return 0x80;
+			else
+				return(PB0);
+		}
+
 		case 0xC062: return(PB1);                                                   // Push Button 1
 		case 0xC063: return(PB2);                                                   // Push Button 2
-		case 0xC064: return(readPaddle(0));                                         // Paddle 0
-		case 0xC065: return(readPaddle(1));                                         // Paddle 1
-		case 0xC066: return(readPaddle(0));                                         // Paddle 2 -- not implemented
-		case 0xC067: return(readPaddle(1));                                         // Paddle 3 -- not implemented
-		case 0xC070: resetPaddles(); break;                                         // paddle timer RST
+
+		// Paddle 0
+		case 0xC064: 
+		{
+			BYTE v = readPaddle(0);
+			return(v);
+		}
+
+		// Paddle 1
+		case 0xC065: 
+		{
+			BYTE v = readPaddle(1);
+			return(v);
+		}
+
+//		case 0xC066: return(readPaddle(0));                                         // Paddle 2 -- not implemented
+//		case 0xC067: return(readPaddle(1));                                         // Paddle 3 -- not implemented
+
+		// paddle timer RST
+		case 0xC070: 
+			resetPaddles(); 
+			break;
 
 		/////////////////////////////////////////////////////////////////////////////////	DISK 2
 
@@ -748,6 +807,12 @@ void Apple2Device::UpdateKeyBoard()
 		case KEY_ESCAPE:		keyboard = 0x9B;    break;             // ESC
 		case KEY_ENTER:			keyboard = 0x8D;    break;             // CR
 
+		case KEY_UP:	
+			keyboard = 0xA0;
+			break;
+			
+
+
 		// COLOR <--> GREEM
 		case KEY_F1 :
 			colorMonitor = !colorMonitor;
@@ -791,10 +856,10 @@ void Apple2Device::InsetFloppy()
 	memset(&disk[0], 0, sizeof(drive));
 	memset(&disk[1], 0, sizeof(drive));
 
-//	insertFloppy("rom/DOS3.3.nib", 0);
+	insertFloppy("rom/DOS3.3.nib", 0);
 //	insertFloppy("rom/LodeRunner.nib", 0);
 //	insertFloppy("rom/Pacman.nib", 0);
-	insertFloppy("rom/karateka.nib", 0);
+//	insertFloppy("rom/karateka.nib", 0);
 //	insertFloppy("rom/Ultima4-1.nib", 0);
 //	insertFloppy("rom/Ultima5-1.nib", 0);
 }
