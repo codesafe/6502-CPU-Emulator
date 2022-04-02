@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 #include "AppleFont.h"
+#include "SDL_joystick.h"
 
 class CPU;	// 6502 cpu
 class Memory;
@@ -13,7 +14,7 @@ struct _RECT
 };
 
 // two disk ][ drive units
-struct drive
+struct FloppyDrive
 {
 	// the full disk image pathname
 	char filename[400];
@@ -31,16 +32,37 @@ struct drive
 	WORD nibble;
 };
 
+
+struct GamePad
+{
+	SDL_Joystick* controller;
+	bool isavailable;
+	bool axis[4];
+	bool pressbtn1;
+	bool pressbtn2;
+
+	GamePad()
+	{
+		controller = NULL;
+		isavailable = false;
+		axis[0] = axis[1] = axis[2] = axis[3] = false;
+		pressbtn1 = false;
+		pressbtn2 = false;
+	}
+};
+
 // apple2의 cpu / memory제외한 device
 class Apple2Device
 {
 public:
 
-	AudioStream stream;
+	//AudioStream stream;
 
 	bool resetMachine;
 	bool colorMonitor;
 	BYTE zoomscale;
+
+	//////////////////////////////////////////////////////////////////////////
 
 	// 패들정보
 	BYTE PB0;  // $C061 Push Button 0 (bit 7) / Open Apple
@@ -53,6 +75,11 @@ public:
 	BYTE GCActionSpeed; // Game Controller speed at which it goes to the edges
 	BYTE GCReleaseSpeed;// Game Controller speed at which it returns to center
 	long long int GCCrigger; // $C070 the tick at which the GCs were reseted
+
+	GamePad gamepad;
+
+	//////////////////////////////////////////////////////////////////////////
+
 
 	// 현재 플로피 디스크 (1,2)
 	int	currentDrive;
@@ -82,7 +109,7 @@ private:
 	Image renderImage;
 
 	AppleFont font;
-	drive disk[2];
+	FloppyDrive disk[2];
 	BYTE updatedrive;
 
 	short audioBuffer[2][AUDIOBUFFERSIZE];
@@ -97,9 +124,14 @@ private:
 	BYTE readPaddle(int pdl);
 
 	// DISK2
-	int insertFloppy(const char* filename, int drv);
+	int InsertFloppy(const char* filename, int drv);
 	void stepMotor(WORD address);
 	void setDrv(int drv);
+
+	// Keyboard
+	void UpdateKeyBoard();
+	// GamePad
+	void UpdateGamepad();
 
 	void ClearScreen();
 	void DrawPoint(int x, int y, int r, int g, int b);
@@ -115,10 +147,12 @@ public:
 	void PlaySound();
 	void Render(Memory& mem, int frame);
 
-	void UpdateKeyBoard();
+	void UpdateInput();
+
 	bool UpdateFloppyDisk();
 	void InsetFloppy();
 
+	void FileDroped(char* path);
 	bool GetDiskMotorState();
 };
 

@@ -80,15 +80,22 @@ void Apple2Machine::Run(int cycle)
 		device.resetMachine = false;
 		cpu.Reboot(mem);
 	}
-
-	device.UpdateKeyBoard();
+	device.UpdateInput();
 	cpu.Run(mem, cycle);
-	while(device.UpdateFloppyDisk())
-		cpu.Run(mem, 15000);
+	while (1)
+	{
+		if( device.UpdateFloppyDisk() == false ) 
+			break;
+		cpu.Run(mem, 5000);
+	}
 }
-
 
 void Apple2Machine::Render(int frame)
 {
 	device.Render(mem, frame);
+}
+
+void Apple2Machine::FileDroped(char* path)
+{
+	device.FileDroped(path);
 }

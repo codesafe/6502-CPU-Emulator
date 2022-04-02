@@ -76,6 +76,8 @@ Apple2Device::~Apple2Device()
 		delete[] backbuffer;
 
 	SDL_AudioQuit();
+	SDL_JoystickClose(gamepad.controller);
+	gamepad.controller = NULL;
 }
 
 void Apple2Device::Create(CPU* cpu)
@@ -107,12 +109,16 @@ void Apple2Device::Create(CPU* cpu)
 	PB0 = 0;
 	PB1 = 0;
 	PB2 = 0;
-	GCP[0] = 127.0f; GCP[1] = 127.0f;
-	GCC[0] = 0; GCC[1] = 0;
-	GCD[0] = 0; GCD[1] = 0;
-	GCA[0] = 0; GCA[1] = 0;
-	GCActionSpeed = 8;
-	GCReleaseSpeed = 8;
+	GCP[0] = 127.0f; 
+	GCP[1] = 127.0f;
+	GCC[0] = 0; 
+	GCC[1] = 0;
+	GCD[0] = 0; 
+	GCD[1] = 0;
+	GCA[0] = 0; 
+	GCA[1] = 0;
+	GCActionSpeed = 64;
+	GCReleaseSpeed = 64;
 
 	// 스크린 백버퍼
 	backbuffer = new Color[SCREENSIZE_X * SCREENSIZE_Y];
@@ -127,7 +133,7 @@ void Apple2Device::Create(CPU* cpu)
 
 
 	// SOUND만 SDL
-	if (SDL_Init(SDL_INIT_AUDIO) < 0)
+	if (SDL_Init(SDL_INIT_AUDIO | SDL_INIT_JOYSTICK) < 0)
 		printf("failed to initialize SDL2 : %s", SDL_GetError());
 
 	SDL_AudioSpec desired = { 96000, AUDIO_S8, 1, 0, 4096, 0, 0, NULL, NULL };
@@ -140,6 +146,11 @@ void Apple2Device::Create(CPU* cpu)
 		audioBuffer[1][i] = -volume;
 	}
 
+	// Gamepad
+	gamepad.controller = SDL_JoystickOpen(0);
+	if (gamepad.controller != NULL)
+		gamepad.isavailable = true;
+
 }
 
 void Apple2Device::resetPaddles()
@@ -151,7 +162,6 @@ void Apple2Device::resetPaddles()
 
 BYTE Apple2Device::readPaddle(int pdl)
 {
-/*
 	// the speed at which the GC values decrease
 	const float GCFreq = 6.6f;
 
@@ -164,13 +174,6 @@ BYTE Apple2Device::readPaddle(int pdl)
 		GCC[pdl] = 0;
 		return 0;
 	}
-*/
-
-	if(keyboard == 0x88 && pdl == 0)
-		return 1;
-
-	if (keyboard == 0x95 && pdl == 0)
-		return 1;
 
 	// not timeout, return something with the MSB set
 	return 0x80;
@@ -279,13 +282,19 @@ BYTE Apple2Device::SoftSwitch(Memory *mem, WORD address, BYTE value, bool WRT)
 		// Push Button 0
 		case 0xC061: 
 		{
-			if (keyboard == 0xA0)
+			if (gamepad.pressbtn2)
 				return 0x80;
 			else
-				return(PB0);
+				return 0;
 		}
-
-		case 0xC062: return(PB1);                                                   // Push Button 1
+		// Push Button 1
+		case 0xC062: 
+		{
+			if (gamepad.pressbtn1)
+				return 0x80;
+			else
+				return 0;
+		}
 		case 0xC063: return(PB2);                                                   // Push Button 2
 
 		// Paddle 0
@@ -641,6 +650,7 @@ void Apple2Device::Render(Memory &mem, int frame)
  	pos.x = 300;
  	pos.y = 10;
 	DrawTextureEx(renderTexture, pos, 0, zoomscale, WHITE);
+	DrawRectangleLines(pos.x, pos.y, SCREENSIZE_X*zoomscale, SCREENSIZE_Y*zoomscale, GRAY);
 
 	if (++flashCycle == 30)
 		flashCycle = 0;
@@ -651,33 +661,41 @@ void Apple2Device::Render(Memory &mem, int frame)
 
 // Apple Disk II 
 
-int Apple2Device::insertFloppy(const char* filename, int drv)
+int Apple2Device::InsertFloppy(const char* filename, int drv)
 {
-	FILE* f = fopen(filename, "rb");                                              // open file in read binary mode
-	if (!f || fread(disk[drv].data, 1, 232960, f) != 232960)                      // load it into memory and check size
+	FILE* f = fopen(filename, "rb");
+	if (!f || fread(disk[drv].data, 1, 232960, f) != 232960)
 		return(0);
 	fclose(f);
 
-	sprintf(disk[drv].filename, "%s", filename);                                   // update disk filename record
+	sprintf(disk[drv].filename, "%s", filename);
 
-// 	f = fopen(filename, "ab");                                                    // try to open the file in append binary mode
-// 	if (!f) {                                                                      // success, file is writable
-// 		disk[drv].readOnly = true;                                                  // update the readOnly flag
-// 		fclose(f);                                                                  // and close it untouched
-// 	}
-// 	else disk[drv].readOnly = false;                                              // f is NULL, no writable, no need to close it
+
+	f = fopen(filename, "ab");
+	if (!f) 
+	{
+		// 쓰기 가능
+		disk[drv].readOnly = true;
+		fclose(f);
+	}
+	else 
+		disk[drv].readOnly = false;	// 읽기만 가능
 
 	return(1);
 }
 
-
 void Apple2Device::stepMotor(WORD address)
 {
-	static bool phases[2][4] = { 0 };                                             // phases states (for both drives)
-	static bool phasesB[2][4] = { 0 };                                            // phases states Before
-	static bool phasesBB[2][4] = { 0 };                                           // phases states Before Before
-	static int pIdx[2] = { 0 };                                                   // phase index (for both drives)
-	static int pIdxB[2] = { 0 };                                                  // phase index Before
+	// phases states (for both drives)
+	static bool phases[2][4] = { 0 };
+	// phases states Before
+	static bool phasesB[2][4] = { 0 };
+	// phases states Before Before
+	static bool phasesBB[2][4] = { 0 };
+	// phase index (for both drives)
+	static int pIdx[2] = { 0 };
+	// phase index Before
+	static int pIdxB[2] = { 0 };
 	static int halfTrackPos[2] = { 0 };
 
 	address &= 7;
@@ -711,135 +729,16 @@ void Apple2Device::setDrv(int drv)
 	currentDrive = drv;                                                                 // set the current drive
 }
 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////// 키보드
 
-void Apple2Device::UpdateKeyBoard()
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////// Input
+
+void Apple2Device::UpdateInput()
 {
-	int key = GetKeyPressed();
-	bool shift = IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT);
-
-	switch (key)
-	{
-// 		case KEY_A:            keyboard = 0xC1;   break;
-// 		case KEY_B:            keyboard = 0xC2;   break;
-// 		case KEY_C:            keyboard = 0xC3;   break;
-// 		case KEY_D:            keyboard = 0xC4;   break;
-// 		case KEY_E:            keyboard = 0xC5;   break;
-// 		case KEY_F:            keyboard = 0xC6;   break;
-// 		case KEY_G:            keyboard = 0xC7;   break;
-// 		case KEY_H:            keyboard = 0xC8;   break;
-// 		case KEY_I:            keyboard = 0xC9;   break;
-// 		case KEY_J:            keyboard = 0xCA;   break;
-// 		case KEY_K:            keyboard = 0xCB;   break;
-// 		case KEY_L:            keyboard = 0xCC;   break;
-// 		case KEY_M:            keyboard = 0xCD;   break;
-// 		case KEY_N:            keyboard = 0xCE;   break;
-// 		case KEY_O:            keyboard = 0xCF;   break;
-// 		case KEY_P:            keyboard = 0xD0;   break;
-// 		case KEY_Q:            keyboard = 0xD1;   break;
-// 		case KEY_R:            keyboard = 0xD2;   break;
-// 		case KEY_S:            keyboard = 0xD3;   break;
-// 		case KEY_T:            keyboard = 0xD4;   break;
-// 		case KEY_U:            keyboard = 0xD5;   break;
-// 		case KEY_V:            keyboard = 0xD6;   break;
-// 		case KEY_W:            keyboard = 0xD7;   break;
-// 		case KEY_X:            keyboard = 0xD8;   break;
-// 		case KEY_Y:            keyboard = 0xD9;   break;
-// 		case KEY_Z:            keyboard = 0xDA;   break;
-		case KEY_A:
-		case KEY_B:
-		case KEY_C:
-		case KEY_D:
-		case KEY_E:
-		case KEY_F:
-		case KEY_G:
-		case KEY_H:
-		case KEY_I:
-		case KEY_J:
-		case KEY_K:
-		case KEY_L:
-		case KEY_M:
-		case KEY_N:
-		case KEY_O:
-		case KEY_P:
-		case KEY_Q:
-		case KEY_R:
-		case KEY_S:
-		case KEY_T:
-		case KEY_U:
-		case KEY_V:
-		case KEY_W:
-		case KEY_X:
-		case KEY_Y:
-		case KEY_Z:
-			keyboard = key - 0x80;
-			break;
-
-		case KEY_ZERO:			keyboard = shift ? 0xA9 : 0xB0; break;             // 0 )
-		case KEY_ONE:			keyboard = shift ? 0xA1 : 0xB1; break;             // 1 !
-		case KEY_TWO:			keyboard = shift ? 0xC0 : 0xB2; break;             // 2 @
-		case KEY_THREE:         keyboard = shift ? 0xA3 : 0xB3; break;             // 3 #
-		case KEY_FOUR:			keyboard = shift ? 0xA4 : 0xB4; break;             // 4 $
-		case KEY_FIVE:			keyboard = shift ? 0xA5 : 0xB5; break;             // 5 %
-		case KEY_SIX:			keyboard = shift ? 0xDE : 0xB6; break;             // 6 ^
-		case KEY_SEVEN:         keyboard = shift ? 0xA6 : 0xB7; break;             // 7 &
-		case KEY_EIGHT:         keyboard = shift ? 0xAA : 0xB8; break;             // 8 *
-		case KEY_NINE:			keyboard = shift ? 0xA8 : 0xB9; break;             // 9 (
-
-
-		case KEY_LEFT_BRACKET:	keyboard = shift ? 0x9B : 0xDB;   break;   // [ {
-		case KEY_BACKSLASH:		keyboard = shift ? 0x9C : 0xDC;   break;   // \ |
-		case KEY_RIGHT_BRACKET:	keyboard = shift ? 0x9D : 0xDD;   break;   // ] }
-
-		case KEY_APOSTROPHE:    keyboard = shift ? 0xA2 : 0xA7;   break;   // ' "
-		case KEY_COMMA:			keyboard = shift ? 0xBC : 0xAC;   break;   // , <
-		case KEY_PERIOD:		keyboard = shift ? 0xBE : 0xAE;   break;   // . >
-
-		case KEY_MINUS:			keyboard = shift ? 0xDF : 0xAD;   break;	// - _
-		case KEY_SLASH:			keyboard = shift ? 0xBF : 0xAF;   break;	// / ?
-		case KEY_SEMICOLON :	keyboard = shift ? 0xBA : 0xBB;   break;	// ; :
-		case KEY_EQUAL:			keyboard = shift ? 0xAB : 0xBD;   break;	// = +
-
-		case KEY_BACKSPACE:		keyboard = 0x88;	break;             // BS
- 		case KEY_LEFT:			keyboard = 0x88;    break;             // BS
- 		case KEY_RIGHT:			keyboard = 0x95;    break;             // NAK
-		case KEY_SPACE:			keyboard = 0xA0;    break;
-		case KEY_ESCAPE:		keyboard = 0x9B;    break;             // ESC
-		case KEY_ENTER:			keyboard = 0x8D;    break;             // CR
-
-		case KEY_UP:	
-			keyboard = 0xA0;
-			break;
-			
-
-
-		// COLOR <--> GREEM
-		case KEY_F1 :
-			colorMonitor = !colorMonitor;
-			break;
-
-		// ZOOM
-		case KEY_F2:
-			zoomscale = zoomscale+1 > 3 ? 1 : zoomscale+1;
-			break;
-
-		// MUTE Speaker
-		case KEY_F3:
-			silence = !silence;
-			break;
-
-		// RESET
-		case KEY_F10:
-			resetMachine = true;
-			break;
-	}
-
-// 	if (key != 0)
-// 	{
-// 		printf("KEY : %x --> %x\n", key, keyboard);
-// 	}
-	
+	UpdateKeyBoard();
+	UpdateGamepad();
 }
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////// 
 
 // 플로피 디스크 업데이트
 bool Apple2Device::UpdateFloppyDisk()
@@ -853,15 +752,18 @@ bool Apple2Device::UpdateFloppyDisk()
 
 void Apple2Device::InsetFloppy()
 {
-	memset(&disk[0], 0, sizeof(drive));
-	memset(&disk[1], 0, sizeof(drive));
+	memset(&disk[0], 0, sizeof(FloppyDrive));
+	memset(&disk[1], 0, sizeof(FloppyDrive));
 
-	insertFloppy("rom/DOS3.3.nib", 0);
-//	insertFloppy("rom/LodeRunner.nib", 0);
-//	insertFloppy("rom/Pacman.nib", 0);
-//	insertFloppy("rom/karateka.nib", 0);
-//	insertFloppy("rom/Ultima4-1.nib", 0);
-//	insertFloppy("rom/Ultima5-1.nib", 0);
+//	InsertFloppy("rom/DOS3.3.nib", 0);
+//	InsertFloppy("rom/LodeRunner.nib", 0);
+//	InsertFloppy("rom/Pacman.nib", 0);
+//	InsertFloppy("rom/karateka.nib", 0);
+//	InsertFloppy("rom/Ultima4-1.nib", 0);
+//	InsertFloppy("rom/Ultima5-1.nib", 0);
+	InsertFloppy("rom/Captain Goodnight-A.nib", 0);
+//	InsertFloppy("rom/Where in the World is Carmen Sandiego1-1.nib", 0);
+
 }
 
 bool Apple2Device::GetDiskMotorState()
@@ -883,4 +785,281 @@ void Apple2Device::PlaySound()
 
 		SDL_QueueAudio(audioDevice, audioBuffer[speaker], length | 1);
 	}
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////// 키보드
+
+void Apple2Device::UpdateKeyBoard()
+{
+	int key = GetKeyPressed();
+	bool shift = IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT);
+
+	switch (key)
+	{
+		// 		case KEY_A:            keyboard = 0xC1;   break;
+		// 		case KEY_B:            keyboard = 0xC2;   break;
+		// 		case KEY_C:            keyboard = 0xC3;   break;
+		// 		case KEY_D:            keyboard = 0xC4;   break;
+		// 		case KEY_E:            keyboard = 0xC5;   break;
+		// 		case KEY_F:            keyboard = 0xC6;   break;
+		// 		case KEY_G:            keyboard = 0xC7;   break;
+		// 		case KEY_H:            keyboard = 0xC8;   break;
+		// 		case KEY_I:            keyboard = 0xC9;   break;
+		// 		case KEY_J:            keyboard = 0xCA;   break;
+		// 		case KEY_K:            keyboard = 0xCB;   break;
+		// 		case KEY_L:            keyboard = 0xCC;   break;
+		// 		case KEY_M:            keyboard = 0xCD;   break;
+		// 		case KEY_N:            keyboard = 0xCE;   break;
+		// 		case KEY_O:            keyboard = 0xCF;   break;
+		// 		case KEY_P:            keyboard = 0xD0;   break;
+		// 		case KEY_Q:            keyboard = 0xD1;   break;
+		// 		case KEY_R:            keyboard = 0xD2;   break;
+		// 		case KEY_S:            keyboard = 0xD3;   break;
+		// 		case KEY_T:            keyboard = 0xD4;   break;
+		// 		case KEY_U:            keyboard = 0xD5;   break;
+		// 		case KEY_V:            keyboard = 0xD6;   break;
+		// 		case KEY_W:            keyboard = 0xD7;   break;
+		// 		case KEY_X:            keyboard = 0xD8;   break;
+		// 		case KEY_Y:            keyboard = 0xD9;   break;
+		// 		case KEY_Z:            keyboard = 0xDA;   break;
+	case KEY_A:		case KEY_B:		case KEY_C:		case KEY_D:		case KEY_E:
+	case KEY_F:		case KEY_G:		case KEY_H:		case KEY_I:		case KEY_J:
+	case KEY_K:		case KEY_L:		case KEY_M:		case KEY_N:		case KEY_O:
+	case KEY_P:		case KEY_Q:		case KEY_R:		case KEY_S:		case KEY_T:
+	case KEY_U:		case KEY_V:		case KEY_W:		case KEY_X:		case KEY_Y:
+	case KEY_Z:
+		keyboard = key - 0x80;
+		break;
+
+	case KEY_ZERO:			keyboard = shift ? 0xA9 : 0xB0; break;             // 0 )
+	case KEY_ONE:			keyboard = shift ? 0xA1 : 0xB1; break;             // 1 !
+	case KEY_TWO:			keyboard = shift ? 0xC0 : 0xB2; break;             // 2 @
+	case KEY_THREE:         keyboard = shift ? 0xA3 : 0xB3; break;             // 3 #
+	case KEY_FOUR:			keyboard = shift ? 0xA4 : 0xB4; break;             // 4 $
+	case KEY_FIVE:			keyboard = shift ? 0xA5 : 0xB5; break;             // 5 %
+	case KEY_SIX:			keyboard = shift ? 0xDE : 0xB6; break;             // 6 ^
+	case KEY_SEVEN:         keyboard = shift ? 0xA6 : 0xB7; break;             // 7 &
+	case KEY_EIGHT:         keyboard = shift ? 0xAA : 0xB8; break;             // 8 *
+	case KEY_NINE:			keyboard = shift ? 0xA8 : 0xB9; break;             // 9 (
+
+
+	case KEY_LEFT_BRACKET:	keyboard = shift ? 0x9B : 0xDB;   break;   // [ {
+	case KEY_BACKSLASH:		keyboard = shift ? 0x9C : 0xDC;   break;   // \ |
+	case KEY_RIGHT_BRACKET:	keyboard = shift ? 0x9D : 0xDD;   break;   // ] }
+
+	case KEY_APOSTROPHE:    keyboard = shift ? 0xA2 : 0xA7;   break;   // ' "
+	case KEY_COMMA:			keyboard = shift ? 0xBC : 0xAC;   break;   // , <
+	case KEY_PERIOD:		keyboard = shift ? 0xBE : 0xAE;   break;   // . >
+
+	case KEY_MINUS:			keyboard = shift ? 0xDF : 0xAD;   break;	// - _
+	case KEY_SLASH:			keyboard = shift ? 0xBF : 0xAF;   break;	// / ?
+	case KEY_SEMICOLON:	keyboard = shift ? 0xBA : 0xBB;   break;	// ; :
+	case KEY_EQUAL:			keyboard = shift ? 0xAB : 0xBD;   break;	// = +
+
+	case KEY_BACKSPACE:		keyboard = 0x88;	break;             // BS
+	case KEY_LEFT:			keyboard = 0x88;    break;             // BS
+	case KEY_RIGHT:			keyboard = 0x95;    break;             // NAK
+	case KEY_SPACE:			keyboard = 0xA0;    break;
+	case KEY_ESCAPE:		keyboard = 0x9B;    break;             // ESC
+	case KEY_ENTER:			keyboard = 0x8D;    break;             // CR
+
+	// COLOR <--> GREEM
+	case KEY_F1:
+		colorMonitor = !colorMonitor;
+		break;
+
+		// ZOOM
+	case KEY_F2:
+		zoomscale = zoomscale + 1 > 3 ? 1 : zoomscale + 1;
+		break;
+
+		// MUTE Speaker
+	case KEY_F3:
+		silence = !silence;
+		break;
+
+		// RESET
+	case KEY_F10:
+		resetMachine = true;
+		break;
+	}
+
+	// 	if (key != 0)
+	// 	{
+	// 		printf("KEY : %x --> %x\n", key, keyboard);
+	// 	}
+
+	/*
+	* 키보드로 게임패드 에뮬 (게임패드랑 같이 못함)
+		if (IsKeyPressed(KEY_LEFT))
+		{
+			GCD[0] = -1; GCA[0] = 1;
+			gamepad.axis[0] = true;
+			//printf("left\n");
+		}
+		else if (IsKeyUp(KEY_LEFT) && gamepad.axis[0])
+		{
+			GCD[0] = 1;  GCA[0] = 0;
+			gamepad.axis[0] = false;
+		}
+
+		if (IsKeyPressed(KEY_RIGHT))
+		{
+			GCD[0] = 1;  GCA[0] = 1;
+			gamepad.axis[1] = true;
+			//printf("right\n");
+		}
+		else if (IsKeyUp(KEY_RIGHT) && gamepad.axis[1])
+		{
+			GCD[0] = -1; GCA[0] = 0;
+			gamepad.axis[1] = false;
+		}
+
+
+		if (IsKeyPressed(KEY_UP))
+		{
+			GCD[1] = -1; GCA[1] = 1;
+			gamepad.axis[2] = true;
+		}
+		else if (IsKeyUp(KEY_UP) && gamepad.axis[2])
+		{
+			GCD[1] = 1;  GCA[1] = 0;
+			gamepad.axis[2] = false;
+		}
+
+		if (IsKeyPressed(KEY_DOWN))
+		{
+			GCD[1] = 1; GCA[1] = 1;
+			gamepad.axis[3] = true;
+		}
+		else if (IsKeyUp(KEY_DOWN) && gamepad.axis[3])
+		{
+			GCD[1] = -1; GCA[1] = 0;
+			gamepad.axis[3] = false;
+		}
+	*/
+
+}
+
+
+// game pad update
+void Apple2Device::UpdateGamepad()
+{
+	if (gamepad.isavailable)
+	{
+		SDL_Event event;
+		while (SDL_PollEvent(&event) != 0) 
+		{
+			if (event.type == SDL_JOYBUTTONDOWN || event.type == SDL_JOYBUTTONUP)
+			{
+				if (event.jbutton.button == 0)
+					gamepad.pressbtn1 = event.type == SDL_JOYBUTTONDOWN ? true : false;
+
+				if (event.jbutton.button == 1)
+					gamepad.pressbtn2 = event.type == SDL_JOYBUTTONDOWN ? true : false;
+			}
+			else if (event.type == SDL_JOYAXISMOTION || event.type == SDL_JOYHATMOTION) 
+			{
+
+				if (event.jaxis.which == 0)
+				{
+					if (event.jaxis.axis == 0)
+					{
+						if ((event.jaxis.value > -8000) && (event.jaxis.value < 8000))
+						{
+							if (gamepad.axis[GAMEPAD_LEFT])
+							{
+								GCD[0] = 1;  GCA[0] = 0;
+								gamepad.axis[GAMEPAD_LEFT] = false;
+							}
+
+
+							if (gamepad.axis[GAMEPAD_RIGHT])
+							{
+								GCD[0] = -1; GCA[0] = 0;
+								gamepad.axis[GAMEPAD_RIGHT] = false;
+							}
+						}
+						else
+						{
+							if (event.jaxis.value < 0 )
+								gamepad.axis[GAMEPAD_LEFT] = true;
+							else
+								gamepad.axis[GAMEPAD_RIGHT] = true;
+						}
+					}
+					else if (event.jaxis.axis == 1)
+					{
+						if ((event.jaxis.value > -8000) && (event.jaxis.value < 8000))
+						{
+							if (gamepad.axis[GAMEPAD_UP])
+							{
+								GCD[1] = 1;  GCA[1] = 0;
+								gamepad.axis[GAMEPAD_UP] = false;
+							}
+
+							if (gamepad.axis[GAMEPAD_DOWN])
+							{
+								GCD[1] = -1; GCA[1] = 0;
+								gamepad.axis[GAMEPAD_DOWN] = false;
+							}
+						}
+						else
+						{
+							if (event.jaxis.value < 0)
+								gamepad.axis[GAMEPAD_UP] = true;
+							else
+								gamepad.axis[GAMEPAD_DOWN] = true;
+						}
+					}
+				}
+			}
+		}
+
+		if (gamepad.axis[GAMEPAD_LEFT])
+		{
+			GCD[0] = -1; 
+			GCA[0] = 1;
+		}
+		if (gamepad.axis[GAMEPAD_RIGHT])
+		{
+			GCD[0] = 1;  
+			GCA[0] = 1;
+		}
+		if (gamepad.axis[GAMEPAD_UP])
+		{
+			GCD[1] = -1; 
+			GCA[1] = 1;
+		}
+		if (gamepad.axis[GAMEPAD_DOWN])
+		{
+			GCD[1] = 1; 
+			GCA[1] = 1;
+		}
+
+		// update paddles positions
+		for (int pdl = 0; pdl < 2; pdl++) 
+		{    
+			// actively pushing the stick
+			if (GCA[pdl]) 
+			{
+				GCP[pdl] += GCD[pdl] * GCActionSpeed;
+				if (GCP[pdl] > 255) GCP[pdl] = 255;
+				if (GCP[pdl] < 0)   GCP[pdl] = 0;
+			}
+			else 
+			{
+				// the stick is return back to center
+				GCP[pdl] += GCD[pdl] * GCReleaseSpeed;
+				if (GCD[pdl] == 1 && GCP[pdl] > 127) GCP[pdl] = 127;
+				if (GCD[pdl] == -1 && GCP[pdl] < 127) GCP[pdl] = 127;
+			}
+		}
+
+	}
+}
+
+void Apple2Device::FileDroped(char* path)
+{
+	InsertFloppy(path, 0);
 }

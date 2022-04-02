@@ -96,6 +96,16 @@ void DrawZeroPage()
 		}
 }
 
+void DrawPadinfo()
+{
+	if (appleplus.device.gamepad.isavailable)
+	{
+		DrawText("GamePad Detected", 10, 260, fontsize, YELLOW);
+	}
+	else
+		DrawText("NO GamePad", 10, 260, fontsize, YELLOW);
+}
+
 std::list<BYTE> opcodestack;
 constexpr int maxopcode = 30;
 void DrawInstruction()
@@ -109,20 +119,8 @@ void DrawInstruction()
 	int i = 0;
 	for (iter = opcodestack.begin(); iter != opcodestack.end(); iter++, i++) 
 	{
-		DrawText(appleplus.cpu.GetInstName(*iter).c_str(), 10, 330 + (i * 20), 15, GREEN);
+		DrawText(appleplus.cpu.GetInstName(*iter).c_str(), 10, 330 + (i * 15), fontsize, GREEN);
 	}
-}
-
-void TestDrawBox()
-{
-	Color color;
-	color.r = 0;
-	color.g = 255;
-	color.b = 255;
-	color.a = 255;
-	for (int y = 0; y < 100; y++)
-	for(int x = 0; x < 100; x++)
-	DrawPixel(x, y, color);
 }
 
 int main(void)
@@ -130,7 +128,7 @@ int main(void)
 	const int windowWidth = 1280;
 	const int windowHeight = 1024;
 
-	SetConfigFlags(FLAG_WINDOW_RESIZABLE /*| FLAG_VSYNC_HINT*/);
+	SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_VSYNC_HINT);
 	InitWindow(windowWidth, windowHeight, "APPLE II Plus Emulator");
 	//SetWindowMinSize(320, 240);
 
@@ -140,9 +138,23 @@ int main(void)
 	appleplus.InitMachine();
 
 	int frame = 0;
+	int dropfilecount = 0;
+	char** droppedFiles = { 0 };
+
 	while (!WindowShouldClose())
 	{
-		int fps = GetFPS();
+		if (IsFileDropped())
+		{
+			droppedFiles = GetDroppedFiles(&dropfilecount);
+			printf("Drop file : %s\n", droppedFiles[0]);
+			appleplus.FileDroped(droppedFiles[0]);
+
+			ClearDroppedFiles();
+		}
+
+		//int fps = GetFPS();
+// 		std::string f = format_string("FPS : %d", fps);
+// 		DrawText(f.c_str(), 10,300, 20, MAGENTA);
 		//long long p = (long long)(1023000.0 / fps);	// 1.023MHz
 
 		long long p = 17050;
@@ -151,8 +163,7 @@ int main(void)
 		BeginDrawing();
 		ClearBackground(BLACK);
 
-// 		std::string f = format_string("FPS : %d", fps);
-// 		DrawText(f.c_str(), 10,300, 20, MAGENTA);
+
 
 		bool diskmotoron = appleplus.device.GetDiskMotorState();
 		std::string disk = format_string("DISK MOTOR : %s", diskmotoron ? "ON" : "OFF");
@@ -162,8 +173,7 @@ int main(void)
 		DrawFlags();
 		DrawZeroPage();
 		//DrawInstruction();
-
-		//TestDrawBox();
+		DrawPadinfo();
 
 		appleplus.Render(frame);
 

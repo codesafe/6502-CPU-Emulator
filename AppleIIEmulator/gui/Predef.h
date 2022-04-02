@@ -48,4 +48,9 @@
 
 #define AUDIOBUFFERSIZE		4096
 
+#define GAMEPAD_LEFT	0
+#define GAMEPAD_RIGHT	1
+#define GAMEPAD_UP		2
+#define GAMEPAD_DOWN	3
+
 #endif
