@@ -112,3 +112,16 @@ void Apple2Machine::FileDroped(char* path)
 {
 	device.FileDroped(path);
 }
+
+// DUMP파일을 로드하여 재개
+void Apple2Machine::LoadMachine()
+{
+
+}
+
+// 현재의 모든 상태를 저장
+void Apple2Machine::DumpMachine()
+{
+
+}
+

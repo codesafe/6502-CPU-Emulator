@@ -25,6 +25,9 @@ public:
 	void Run(int cycle);
 	void Render(int frame);
 	void FileDroped(char* path);
+
+	void LoadMachine();
+	void DumpMachine();
 };
 
 

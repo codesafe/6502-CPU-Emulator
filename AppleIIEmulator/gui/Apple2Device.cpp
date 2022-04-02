@@ -95,8 +95,19 @@ void Apple2Device::Create(CPU* cpu)
 	speakerLastTick = 0;
 	volume = 5;
 	
+	// DISK ][
 	updatedrive = 0;
 	currentDrive = 0;
+
+	memset(phases, 0, sizeof(phases));
+	memset(phasesB, 0, sizeof(phasesB));
+	memset(phasesBB, 0, sizeof(phasesBB));
+	memset(pIdx, 0, sizeof(pIdx));
+	memset(pIdxB, 0, sizeof(pIdxB));
+	memset(halfTrackPos, 0, sizeof(halfTrackPos));
+
+	// I/O register
+	dLatch = 0;
 
 	textMode = true;
 	mixedMode = false;
@@ -106,9 +117,6 @@ void Apple2Device::Create(CPU* cpu)
 	//videoAddress = videoPage * 0x0400;
 
 	// 패들 초기화
-	PB0 = 0;
-	PB1 = 0;
-	PB2 = 0;
 	GCP[0] = 127.0f; 
 	GCP[1] = 127.0f;
 	GCC[0] = 0; 
@@ -153,6 +161,17 @@ void Apple2Device::Create(CPU* cpu)
 
 }
 
+void Apple2Device::Dump(FILE *fp)
+{
+//	pixelGR
+
+}
+
+void Apple2Device::LoadDump(FILE* fp)
+{
+
+}
+
 void Apple2Device::resetPaddles()
 {
 	GCC[0] = GCP[0] * GCP[0]; // initialize the countdown for both paddles
@@ -181,9 +200,6 @@ BYTE Apple2Device::readPaddle(int pdl)
 
 BYTE Apple2Device::SoftSwitch(Memory *mem, WORD address, BYTE value, bool WRT)
 {
-	// disk ][ I/O register
-	static BYTE dLatch = 0;
-
 	switch (address) 
 	{
 		// KEYBOARD
@@ -295,7 +311,10 @@ BYTE Apple2Device::SoftSwitch(Memory *mem, WORD address, BYTE value, bool WRT)
 			else
 				return 0;
 		}
-		case 0xC063: return(PB2);                                                   // Push Button 2
+
+// 		// Push Button 2
+// 		case 0xC063: 
+// 			return 0;
 
 		// Paddle 0
 		case 0xC064: 
@@ -310,9 +329,6 @@ BYTE Apple2Device::SoftSwitch(Memory *mem, WORD address, BYTE value, bool WRT)
 			BYTE v = readPaddle(1);
 			return(v);
 		}
-
-//		case 0xC066: return(readPaddle(0));                                         // Paddle 2 -- not implemented
-//		case 0xC067: return(readPaddle(1));                                         // Paddle 3 -- not implemented
 
 		// paddle timer RST
 		case 0xC070: 
@@ -357,11 +373,16 @@ BYTE Apple2Device::SoftSwitch(Memory *mem, WORD address, BYTE value, bool WRT)
 		// Shift Data Latch
 		case 0xC0EC:                                                                
 		{
-			if (disk[currentDrive].writeMode)                                               // writting
-				disk[currentDrive].data[disk[currentDrive].track * 0x1A00 + disk[currentDrive].nibble] = dLatch;// good luck gcc
-			else                                                                      // reading
-				dLatch = disk[currentDrive].data[disk[currentDrive].track * 0x1A00 + disk[currentDrive].nibble];// easy peasy
-			disk[currentDrive].nibble = (disk[currentDrive].nibble + 1) % 0x1A00;                 // turn floppy of 1 nibble              
+			// writting
+			if (disk[currentDrive].writeMode)
+				disk[currentDrive].data[disk[currentDrive].track * 0x1A00 + disk[currentDrive].nibble] = dLatch;
+			else
+			{
+				// reading
+				dLatch = disk[currentDrive].data[disk[currentDrive].track * 0x1A00 + disk[currentDrive].nibble];
+			}
+			// turn floppy of 1 nibble
+			disk[currentDrive].nibble = (disk[currentDrive].nibble + 1) % 0x1A00;
 		}
 		return(dLatch);
 
@@ -654,7 +675,14 @@ void Apple2Device::Render(Memory &mem, int frame)
  	pos.x = 300;
  	pos.y = 10;
 	DrawTextureEx(renderTexture, pos, 0, zoomscale, WHITE);
-	DrawRectangleLines((int)pos.x, (int)pos.y, SCREENSIZE_X*zoomscale, SCREENSIZE_Y*zoomscale, GRAY);
+
+	const int gap = 8;
+	Rectangle rec;
+	rec.x = pos.x - gap;
+	rec.y = pos.y - gap;
+	rec.width = SCREENSIZE_X * zoomscale + (gap * 2);
+	rec.height = SCREENSIZE_Y * zoomscale + (gap * 2);
+	DrawRectangleLinesEx(rec, 2, GRAY);
 
 	if (++flashCycle == 30)
 		flashCycle = 0;
@@ -667,7 +695,7 @@ void Apple2Device::Render(Memory &mem, int frame)
 bool Apple2Device::InsertFloppy(const char* filename, int drv)
 {
 	std::string path = filename;
-	int idx = path.rfind('.');
+	size_t idx = path.rfind('.');
 	std::string ext = path.substr(idx+1);
 
 	if (ext == "nib")
@@ -703,18 +731,6 @@ bool Apple2Device::InsertFloppy(const char* filename, int drv)
 
 void Apple2Device::stepMotor(WORD address)
 {
-	// phases states (for both drives)
-	static bool phases[2][4] = { 0 };
-	// phases states Before
-	static bool phasesB[2][4] = { 0 };
-	// phases states Before Before
-	static bool phasesBB[2][4] = { 0 };
-	// phase index (for both drives)
-	static int pIdx[2] = { 0 };
-	// phase index Before
-	static int pIdxB[2] = { 0 };
-	static int halfTrackPos[2] = { 0 };
-
 	address &= 7;
 	int phase = address >> 1;
 
@@ -880,31 +896,27 @@ void Apple2Device::UpdateKeyBoard()
 	case KEY_ESCAPE:		keyboard = 0x9B;    break;             // ESC
 	case KEY_ENTER:			keyboard = 0x8D;    break;             // CR
 
-	// COLOR <--> GREEM
+	// RESET
 	case KEY_F1:
+		resetMachine = true;
+		break;
+
+	// COLOR <--> GREEM
+	case KEY_F2:
 		colorMonitor = !colorMonitor;
 		break;
 
 		// ZOOM
-	case KEY_F2:
+	case KEY_F3:
 		zoomscale = zoomscale + 1 > 3 ? 1 : zoomscale + 1;
 		break;
 
 		// MUTE Speaker
-	case KEY_F3:
+	case KEY_F4:
 		silence = !silence;
 		break;
 
-		// RESET
-	case KEY_F10:
-		resetMachine = true;
-		break;
 	}
-
-	// 	if (key != 0)
-	// 	{
-	// 		printf("KEY : %x --> %x\n", key, keyboard);
-	// 	}
 
 	/*
 	* 키보드로 게임패드 에뮬 (게임패드랑 같이 못함)

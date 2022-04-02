@@ -57,8 +57,6 @@ class Apple2Device
 {
 public:
 
-	//AudioStream stream;
-
 	bool resetMachine;
 	bool colorMonitor;
 	BYTE zoomscale;
@@ -66,9 +64,6 @@ public:
 	//////////////////////////////////////////////////////////////////////////
 
 	// 패들정보
-	BYTE PB0;  // $C061 Push Button 0 (bit 7) / Open Apple
-	BYTE PB1;  // $C062 Push Button 1 (bit 7) / Solid Apple
-	BYTE PB2;  // $C063 Push Button 2 (bit 7) / shift mod !!!
 	float GCP[2]; // GC Position ranging from 0 (left) to 255 right
 	float GCC[2]; // $C064 (GC0) and $C065 (GC1) Countdowns
 	int GCD[2];// GC0 and GC1 Directions (left/down or right/up)
@@ -81,24 +76,13 @@ public:
 
 	//////////////////////////////////////////////////////////////////////////
 
-
 	// 현재 플로피 디스크 (1,2)
 	int	currentDrive;
 
-	// $C050 CLRTEXT / $C051 SETTEXT
 	bool textMode;
-
-	// $C052 CLRMIXED / $C053 SETMIXED
 	bool mixedMode;
-
-	// 비디오 페이지
-	BYTE videoPage;
-	// 고해상도 모드
 	bool hires_Mode;
-
-	// 키보드입력 값
-	BYTE keyboard;
-	// 비디오 메모리 주소
+	BYTE videoPage;
 	WORD videoAddress;
 
 	_RECT pixelGR;
@@ -110,8 +94,28 @@ private:
 	Image renderImage;
 
 	AppleFont font;
+
+	// 키보드입력 값
+	BYTE keyboard;
+
+	////////////////////////////////////////////////
+
 	FloppyDrive disk[2];
 	BYTE updatedrive;
+
+	bool phases[2][4];
+	// phases states Before
+	bool phasesB[2][4];
+	// phases states Before Before
+	bool phasesBB[2][4];
+	// phase index (for both drives)
+	int pIdx[2];
+	// phase index Before
+	int pIdxB[2];
+	int halfTrackPos[2];
+	BYTE dLatch;
+
+	////////////////////////////////////////////////
 
 	short audioBuffer[2][AUDIOBUFFERSIZE];
 	unsigned int audioDevice;
@@ -144,6 +148,9 @@ public:
 	~Apple2Device();
 
 	void Create(CPU* cpu);
+	void Dump(FILE* fp);
+	void LoadDump(FILE* fp);
+
 	BYTE SoftSwitch(Memory* mem, WORD address, BYTE value, bool WRT);
 	void PlaySound();
 	void Render(Memory& mem, int frame);

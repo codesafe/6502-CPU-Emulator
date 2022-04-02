@@ -110,6 +110,12 @@ void DrawDiskinfo()
 {
 	std::string dsk = "DISK 0 :" + appleplus.device.GetDiskName(0);
 	DrawText(dsk.c_str(), 10, 600, fontsize, YELLOW);
+
+	DrawText("F1 : RESET", 10, 620, fontsize, GREEN);
+	DrawText("F2 : MONO <---> COLOR", 10, 635, fontsize, GREEN);
+	DrawText("F3 : ZOOM", 10, 650, fontsize, GREEN);
+	DrawText("F4 : MUTE", 10, 665, fontsize, GREEN);
+	DrawText("F12 : QUIT", 10, 680, fontsize, GREEN);
 }
 
 
@@ -133,7 +139,7 @@ void DrawInstruction()
 int main(void)
 {
 	const int windowWidth = 1280;
-	const int windowHeight = 1024;
+	const int windowHeight = 720;
 
 	SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_VSYNC_HINT);
 	InitWindow(windowWidth, windowHeight, "APPLE II Plus Emulator");
@@ -141,6 +147,7 @@ int main(void)
 
 	SetTargetFPS(TARGET_FRAME);
 	SetTraceLogLevel(LOG_ERROR);
+	SetExitKey(KEY_F12);
 
 	appleplus.InitMachine();
 
