@@ -1,7 +1,8 @@
-
+#include "Predef.h"
 #include "rombios.h"
 #include "Apple2Machine.h"
 #include "raylib.h"
+
 
 Apple2Machine::Apple2Machine()
 {
@@ -93,6 +94,20 @@ void Apple2Machine::Run(int cycle)
 		device.resetMachine = false;
 		cpu.Reboot(mem);
 	}
+
+	if (device.dumpMachine)
+	{
+		DumpMachine();
+		device.dumpMachine = false;
+	}
+
+	if (device.loaddumpmachine)
+	{
+		LoadMachine();
+		device.loaddumpmachine = false;
+		return;
+	}
+
 	device.UpdateInput();
 	cpu.Run(mem, cycle);
 	while (1)
@@ -116,12 +131,25 @@ void Apple2Machine::FileDroped(char* path)
 // DUMP파일을 로드하여 재개
 void Apple2Machine::LoadMachine()
 {
-
+	FILE* fp = fopen("appleIIdump.dmp", "rb");
+	if (fp != NULL)
+	{
+		mem.LoadDump(fp);
+		cpu.LoadDump(fp);
+		device.LoadDump(fp);
+		fclose(fp);
+	}
 }
 
 // 현재의 모든 상태를 저장
 void Apple2Machine::DumpMachine()
 {
+	FILE* fp = fopen("appleIIdump.dmp", "wb");
 
+	mem.Dump(fp);
+	cpu.Dump(fp);
+	device.Dump(fp);
+
+	fclose(fp);
 }
 

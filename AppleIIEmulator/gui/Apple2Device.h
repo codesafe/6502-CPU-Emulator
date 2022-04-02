@@ -56,6 +56,8 @@ struct GamePad
 class Apple2Device
 {
 public:
+	bool loaddumpmachine;
+	bool dumpMachine;
 
 	bool resetMachine;
 	bool colorMonitor;
@@ -79,6 +81,8 @@ public:
 	// 현재 플로피 디스크 (1,2)
 	int	currentDrive;
 
+	//////////////////////////////////////////////////////////////////////////
+
 	bool textMode;
 	bool mixedMode;
 	bool hires_Mode;
@@ -86,6 +90,12 @@ public:
 	WORD videoAddress;
 
 	_RECT pixelGR;
+
+	int LoResCache[24][40];
+	int HiResCache[192][40];
+	BYTE previousBit[192][40];
+	BYTE flashCycle;
+
 
 private:
 	CPU* cpu;

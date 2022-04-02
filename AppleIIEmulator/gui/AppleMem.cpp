@@ -18,23 +18,23 @@ Memory::~Memory()
 
 void Memory::Create()
 {
+#if 0
 	memory = new BYTE[MEMORY_SIZE];
 	memset(memory, 0, MEMORY_SIZE);
-
-	// Language Card writable
-	LCWR = true;
-	// Language Card readable
-	LCRD = false;
-	// Language Card bank 2 enabled
-	LCBK2 = true;
-	// Language Card pre-write flip flop
-	LCWFF = false;
+#else
+	LCWritable = true;
+	LCReadable = false;
+	LCBank2Enable = true;
+	LCPreWriteFlipflop = false;
+#endif
 }
 
 void Memory::Destroy()
 {
+#if 0
 	delete[] memory;
 	memory = NULL;
+#endif
 }
 
 BYTE Memory::ReadByte(int address)
@@ -49,10 +49,10 @@ BYTE Memory::ReadByte(int address)
 		return ram[address];                                                        // RAM
 
 	if (address >= ROMSTART) {
-		if (!LCRD)
+		if (!LCReadable)
 			return rom[address - ROMSTART];                                           // ROM
 
-		if (LCBK2 && (address < 0xE000))
+		if (LCBank2Enable && (address < 0xE000))
 			return bk2[address - BK2START];                                           // BK2
 
 		return lgc[address - LGCSTART];                                             // LC
@@ -81,8 +81,8 @@ void Memory::WriteByte(int address, BYTE value)
 		return;
 	}
 
-	if (LCWR && (address >= ROMSTART)) {
-		if (LCBK2 && (address < 0xE000)) {
+	if (LCWritable && (address >= ROMSTART)) {
+		if (LCBank2Enable && (address < 0xE000)) {
 			bk2[address - BK2START] = value;                                          // BK2
 			return;
 		}
@@ -140,4 +140,32 @@ void Memory::UpLoadToRom(BYTE* code)
 void Memory::ResetRam()
 {
 	memset(ram, 0, sizeof(ram));
+}
+
+void Memory::Dump(FILE* fp)
+{
+	fwrite(&LCWritable, 1, sizeof(bool), fp);
+	fwrite(&LCReadable, 1, sizeof(bool), fp);
+	fwrite(&LCBank2Enable, 1, sizeof(bool), fp);
+	fwrite(&LCPreWriteFlipflop, 1, sizeof(bool), fp);
+
+	fwrite(ram, 1, RAMSIZE, fp);
+	fwrite(rom, 1, ROMSIZE, fp);
+	fwrite(lgc, 1, LGCSIZE, fp);
+	fwrite(bk2, 1, BK2SIZE, fp);
+	fwrite(sl6, 1, SL6SIZE, fp);
+}
+
+void Memory::LoadDump(FILE* fp)
+{
+	fread(&LCWritable, 1, sizeof(bool), fp);
+	fread(&LCReadable, 1, sizeof(bool), fp);
+	fread(&LCBank2Enable, 1, sizeof(bool), fp);
+	fread(&LCPreWriteFlipflop, 1, sizeof(bool), fp);
+
+	fread(ram, 1, RAMSIZE, fp);
+	fread(rom, 1, ROMSIZE, fp);
+	fread(lgc, 1, LGCSIZE, fp);
+	fread(bk2, 1, BK2SIZE, fp);
+	fread(sl6, 1, SL6SIZE, fp);
 }

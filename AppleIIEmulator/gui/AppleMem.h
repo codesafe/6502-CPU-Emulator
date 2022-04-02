@@ -7,15 +7,11 @@
 class Memory
 {
 	public:
-
-		// Language Card writable
-		bool LCWR;
-		// Language Card readable
-		bool LCRD;
-		// Language Card bank 2 enabled
-		bool LCBK2;
-		// Language Card pre-write flip flop
-		bool LCWFF;
+		// LC -> Language Card
+		bool LCWritable;
+		bool LCReadable;
+		bool LCBank2Enable;			// bank 2 enabled
+		bool LCPreWriteFlipflop;	// pre-write flip flop
 
 		BYTE ram[RAMSIZE];  // 48K of ram in $000-$BFFF
 		BYTE rom[ROMSIZE];  // 12K of rom in $D000-$FFFF
@@ -43,6 +39,9 @@ class Memory
 
 		void UpLoadToRom(BYTE* code);
 		void ResetRam();
+
+		void Dump(FILE* fp);
+		void LoadDump(FILE* fp);
 };
 
 

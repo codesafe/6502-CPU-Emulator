@@ -116,6 +116,9 @@ void DrawDiskinfo()
 	DrawText("F3 : ZOOM", 10, 650, fontsize, GREEN);
 	DrawText("F4 : MUTE", 10, 665, fontsize, GREEN);
 	DrawText("F12 : QUIT", 10, 680, fontsize, GREEN);
+
+	DrawText("F10 : SAVE SNAPSHOT", 200, 620, fontsize, YELLOW);
+	DrawText("F11 : LOAD SNAPSHOT", 200, 635, fontsize, YELLOW);
 }
 
 
@@ -176,8 +179,6 @@ int main(void)
 
 		BeginDrawing();
 		ClearBackground(BLACK);
-
-
 
 		bool diskmotoron = appleplus.device.GetDiskMotorState();
 		std::string disk = format_string("DISK MOTOR : %s", diskmotoron ? "ON" : "OFF");

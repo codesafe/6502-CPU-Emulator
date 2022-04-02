@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <memory.h>
 
+
 #define SBYTE		signed char
 #define BYTE		unsigned char
 #define WORD		unsigned short

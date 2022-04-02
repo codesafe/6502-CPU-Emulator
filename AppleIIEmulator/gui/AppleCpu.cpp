@@ -2052,3 +2052,28 @@ void CPU::Execute_BRANCH(bool v, bool condition, Memory &mem, int &cycle)
 #endif
 	}
 }
+
+
+void CPU::Dump(FILE* fp)
+{
+	fwrite(&tick, 1, sizeof(long long), fp);
+
+	fwrite(&A, 1, sizeof(BYTE), fp);
+	fwrite(&X, 1, sizeof(BYTE), fp);
+	fwrite(&Y, 1, sizeof(BYTE), fp);
+	fwrite(&SP, 1, sizeof(BYTE), fp);
+	fwrite(&PS, 1, sizeof(BYTE), fp);
+	fwrite(&PC, 1, sizeof(WORD), fp);
+}
+
+void CPU::LoadDump(FILE* fp)
+{
+	fread(&tick, 1, sizeof(long long), fp);
+
+	fread(&A, 1, sizeof(BYTE), fp);
+	fread(&X, 1, sizeof(BYTE), fp);
+	fread(&Y, 1, sizeof(BYTE), fp);
+	fread(&SP, 1, sizeof(BYTE), fp);
+	fread(&PS, 1, sizeof(BYTE), fp);
+	fread(&PC, 1, sizeof(WORD), fp);
+}

@@ -11,12 +11,6 @@
 
 /////////////////////////////////////////////////////////////////////////// 
 
-int LoResCache[24][40] = { 0 };
-int HiResCache[192][40] = { 0 };                                              // check which Hi-Res 7 dots needs redraw
-BYTE previousBit[192][40] = { 0 };                                         // the last bit value of the byte before.
-BYTE flashCycle = 0;                                                       // TEXT cursor flashes at 2Hz
-
-
 const int offsetGR[24] = {                                                    // helper for TEXT and GR video generation
   0x000, 0x080, 0x100, 0x180, 0x200, 0x280, 0x300, 0x380,                     // lines 0-7
   0x028, 0x0A8, 0x128, 0x1A8, 0x228, 0x2A8, 0x328, 0x3A8,                     // lines 8-15
@@ -84,9 +78,14 @@ void Apple2Device::Create(CPU* cpu)
 {
 	this->cpu = cpu;
 
-	pixelGR = { 0, 0, 7, 4 };
+	loaddumpmachine = false;
+	dumpMachine = false;
 	resetMachine = false;
 	colorMonitor = true;
+	keyboard = 0;
+
+	pixelGR = { 0, 0, 7, 4 };
+
 	zoomscale = 3;
 	font.Create();
 
@@ -98,6 +97,8 @@ void Apple2Device::Create(CPU* cpu)
 	// DISK ][
 	updatedrive = 0;
 	currentDrive = 0;
+	// I/O register
+	dLatch = 0;
 
 	memset(phases, 0, sizeof(phases));
 	memset(phasesB, 0, sizeof(phasesB));
@@ -106,16 +107,8 @@ void Apple2Device::Create(CPU* cpu)
 	memset(pIdxB, 0, sizeof(pIdxB));
 	memset(halfTrackPos, 0, sizeof(halfTrackPos));
 
-	// I/O register
-	dLatch = 0;
-
-	textMode = true;
-	mixedMode = false;
-	videoPage = 1;
-	hires_Mode = false;
-	keyboard = 0;
-	//videoAddress = videoPage * 0x0400;
-
+	////////////////////////////////////////////////////////////////////////// GAMEPAD
+	// 
 	// 패들 초기화
 	GCP[0] = 127.0f; 
 	GCP[1] = 127.0f;
@@ -128,6 +121,19 @@ void Apple2Device::Create(CPU* cpu)
 	GCActionSpeed = 64;
 	GCReleaseSpeed = 64;
 
+	////////////////////////////////////////////////////////////////////////// VIDEO
+	
+	textMode = true;
+	mixedMode = false;
+	videoPage = 1;
+	hires_Mode = false;
+
+	//videoAddress = videoPage * 0x0400;
+	memset(LoResCache, 0, sizeof(LoResCache));
+	memset(HiResCache, 0, sizeof(HiResCache));
+	memset(previousBit, 0, sizeof(previousBit));
+	flashCycle = 0;                                                       // TEXT cursor flashes at 2Hz
+
 	// 스크린 백버퍼
 	backbuffer = new Color[SCREENSIZE_X * SCREENSIZE_Y];
 	ClearScreen();
@@ -139,6 +145,7 @@ void Apple2Device::Create(CPU* cpu)
 	renderImage.mipmaps = 1;
 	renderTexture = LoadTextureFromImage(renderImage);
 
+	//////////////////////////////////////////////////////////////////////////
 
 	// SOUND만 SDL
 	if (SDL_Init(SDL_INIT_AUDIO | SDL_INIT_JOYSTICK) < 0)
@@ -158,17 +165,6 @@ void Apple2Device::Create(CPU* cpu)
 	gamepad.controller = SDL_JoystickOpen(0);
 	if (gamepad.controller != NULL)
 		gamepad.isavailable = true;
-
-}
-
-void Apple2Device::Dump(FILE *fp)
-{
-//	pixelGR
-
-}
-
-void Apple2Device::LoadDump(FILE* fp)
-{
 
 }
 
@@ -405,51 +401,51 @@ BYTE Apple2Device::SoftSwitch(Memory *mem, WORD address, BYTE value, bool WRT)
 
 		case 0xC080:                                                                // LANGUAGE CARD :
 		case 0xC084: 
-			mem->LCBK2 = 1; mem->LCRD = 1; mem->LCWR = 0;
-			mem->LCWFF = 0;    
+			mem->LCBank2Enable = 1; mem->LCReadable = 1; mem->LCWritable = 0;
+			mem->LCPreWriteFlipflop = 0;    
 			break;       // LC2RD
 
 		case 0xC081:
 		case 0xC085: 
-			mem->LCBK2 = 1; mem->LCRD = 0; mem->LCWR |= mem->LCWFF; 
-			mem->LCWFF = !WRT; 
+			mem->LCBank2Enable = 1; mem->LCReadable = 0; mem->LCWritable |= mem->LCPreWriteFlipflop; 
+			mem->LCPreWriteFlipflop = !WRT; 
 			break;       // LC2WR
 
 		case 0xC082:
 		case 0xC086: 
-			mem->LCBK2 = 1; mem->LCRD = 0; mem->LCWR = 0;
-			mem->LCWFF = 0;    
+			mem->LCBank2Enable = 1; mem->LCReadable = 0; mem->LCWritable = 0;
+			mem->LCPreWriteFlipflop = 0;    
 			break;       // ROMONLY2
 
 		case 0xC083:
 		case 0xC087: 
-			mem->LCBK2 = 1; mem->LCRD = 1; mem->LCWR |= mem->LCWFF; 
-			mem->LCWFF = !WRT; 
+			mem->LCBank2Enable = 1; mem->LCReadable = 1; mem->LCWritable |= mem->LCPreWriteFlipflop; 
+			mem->LCPreWriteFlipflop = !WRT; 
 			break;       // LC2RW
 
 		case 0xC088:
 		case 0xC08C: 
-			mem->LCBK2 = 0; mem->LCRD = 1; mem->LCWR = 0;
-			mem->LCWFF = 0;    
+			mem->LCBank2Enable = 0; mem->LCReadable = 1; mem->LCWritable = 0;
+			mem->LCPreWriteFlipflop = 0;    
 			break;       // LC1RD
 
 		case 0xC089:
 		case 0xC08D: 
-			mem->LCBK2 = 0; mem->LCRD = 0; mem->LCWR |= mem->LCWFF; 
-			mem->LCWFF = !WRT; 
+			mem->LCBank2Enable = 0; mem->LCReadable = 0; mem->LCWritable |= mem->LCPreWriteFlipflop; 
+			mem->LCPreWriteFlipflop = !WRT; 
 			break;       // LC1WR
 
 		case 0xC08A:
 		case 0xC08E: 
-			mem->LCBK2 = 0; mem->LCRD = 0; mem->LCWR = 0; 
-			mem->LCWFF = 0;    
+			mem->LCBank2Enable = 0; mem->LCReadable = 0; mem->LCWritable = 0; 
+			mem->LCPreWriteFlipflop = 0;    
 			break;       // ROMONLY1
 
 		case 0xC08B:
 		case 0xC08F: 
-			mem->LCBK2 = 0; mem->LCRD = 1; 
-			mem->LCWR |= mem->LCWFF; 
-			mem->LCWFF = !WRT; 
+			mem->LCBank2Enable = 0; mem->LCReadable = 1; 
+			mem->LCWritable |= mem->LCPreWriteFlipflop; 
+			mem->LCPreWriteFlipflop = !WRT; 
 			break;       // LC1RW
 	}
 
@@ -680,8 +676,8 @@ void Apple2Device::Render(Memory &mem, int frame)
 	Rectangle rec;
 	rec.x = pos.x - gap;
 	rec.y = pos.y - gap;
-	rec.width = SCREENSIZE_X * zoomscale + (gap * 2);
-	rec.height = SCREENSIZE_Y * zoomscale + (gap * 2);
+	rec.width = (float)(SCREENSIZE_X * zoomscale + (gap * 2));
+	rec.height = (float)(SCREENSIZE_Y * zoomscale + (gap * 2));
 	DrawRectangleLinesEx(rec, 2, GRAY);
 
 	if (++flashCycle == 30)
@@ -916,6 +912,14 @@ void Apple2Device::UpdateKeyBoard()
 		silence = !silence;
 		break;
 
+	case KEY_F10:
+		dumpMachine = true;
+		break;
+
+	case KEY_F11:
+		loaddumpmachine = true;
+		break;
+
 	}
 
 	/*
@@ -1097,3 +1101,105 @@ std::string Apple2Device::GetDiskName(int i)
 {
 	return disk[i].filename;
 }
+
+
+///////////////////////////////////////////////////////////////////////////////////////
+
+void Apple2Device::Dump(FILE* fp)
+{
+	fwrite(&pixelGR, 1, sizeof(_RECT), fp);
+
+	fwrite(&colorMonitor, 1, sizeof(bool), fp);
+	fwrite(&silence, 1, sizeof(bool), fp);
+	fwrite(&zoomscale, 1, sizeof(BYTE), fp);
+	fwrite(&dLatch, 1, sizeof(BYTE), fp);
+	fwrite(&volume, 1, sizeof(int), fp);
+	fwrite(&currentDrive, 1, sizeof(int), fp);
+
+	////////////////////////////////////////////////////////////////////////// Drive
+
+	fwrite(&disk[0], 1, sizeof(FloppyDrive), fp);
+	fwrite(&disk[1], 1, sizeof(FloppyDrive), fp);
+
+	fwrite(&phases, 1, sizeof(phases), fp);
+	fwrite(&phasesB, 1, sizeof(phasesB), fp);
+	fwrite(&phasesBB, 1, sizeof(phasesBB), fp);
+	fwrite(&pIdx, 1, sizeof(pIdx), fp);
+	fwrite(&pIdxB, 1, sizeof(pIdxB), fp);
+	fwrite(&halfTrackPos, 1, sizeof(halfTrackPos), fp);
+
+	////////////////////////////////////////////////////////////////////////// GAMEPAD
+
+	fwrite(&GCP, 1, sizeof(GCP), fp);
+	fwrite(&GCC, 1, sizeof(GCC), fp);
+	fwrite(&GCD, 1, sizeof(GCD), fp);
+	fwrite(&GCA, 1, sizeof(GCA), fp);
+
+	////////////////////////////////////////////////////////////////////////// VIDEO
+
+	fwrite(&textMode, 1, sizeof(bool), fp);
+	fwrite(&mixedMode, 1, sizeof(bool), fp);
+	fwrite(&hires_Mode, 1, sizeof(bool), fp);
+	fwrite(&videoPage, 1, sizeof(BYTE), fp);
+	fwrite(&flashCycle, 1, sizeof(BYTE), fp);
+	fwrite(&videoAddress, 1, sizeof(WORD), fp);
+
+	fwrite(&LoResCache, 1, sizeof(LoResCache), fp);
+	fwrite(&HiResCache, 1, sizeof(HiResCache), fp);
+	fwrite(&previousBit, 1, sizeof(previousBit), fp);
+
+	//////////////////////////////////////////////////////////////////////////
+
+	fwrite(&audioBuffer, 1, sizeof(audioBuffer), fp);
+
+}
+
+void Apple2Device::LoadDump(FILE* fp)
+{
+	fread(&pixelGR, 1, sizeof(_RECT), fp);
+
+	fread(&colorMonitor, 1, sizeof(bool), fp);
+	fread(&silence, 1, sizeof(bool), fp);
+	fread(&zoomscale, 1, sizeof(BYTE), fp);
+	fread(&dLatch, 1, sizeof(BYTE), fp);
+	fread(&volume, 1, sizeof(int), fp);
+	fread(&currentDrive, 1, sizeof(int), fp);
+
+	fread(&disk[0], 1, sizeof(FloppyDrive), fp);
+	fread(&disk[1], 1, sizeof(FloppyDrive), fp);
+
+	fread(&phases, 1, sizeof(phases), fp);
+	fread(&phasesB, 1, sizeof(phasesB), fp);
+	fread(&phasesBB, 1, sizeof(phasesBB), fp);
+	fread(&pIdx, 1, sizeof(pIdx), fp);
+	fread(&pIdxB, 1, sizeof(pIdxB), fp);
+	fread(&halfTrackPos, 1, sizeof(halfTrackPos), fp);
+
+	////////////////////////////////////////////////////////////////////////// GAMEPAD
+
+	fread(&GCP, 1, sizeof(GCP), fp);
+	fread(&GCC, 1, sizeof(GCC), fp);
+	fread(&GCD, 1, sizeof(GCD), fp);
+	fread(&GCA, 1, sizeof(GCA), fp);
+
+	////////////////////////////////////////////////////////////////////////// VIDEO
+
+	fread(&textMode, 1, sizeof(bool), fp);
+	fread(&mixedMode, 1, sizeof(bool), fp);
+	fread(&hires_Mode, 1, sizeof(bool), fp);
+	fread(&videoPage, 1, sizeof(BYTE), fp);
+	fread(&flashCycle, 1, sizeof(BYTE), fp);
+	fread(&videoAddress, 1, sizeof(WORD), fp);
+
+	fread(&LoResCache, 1, sizeof(LoResCache), fp);
+	fread(&HiResCache, 1, sizeof(HiResCache), fp);
+	fread(&previousBit, 1, sizeof(previousBit), fp);
+
+	//////////////////////////////////////////////////////////////////////////
+
+	fread(&audioBuffer, 1, sizeof(audioBuffer), fp);
+
+	// insertFloppy
+	InsertFloppy(disk[currentDrive].filename, currentDrive);
+}
+
