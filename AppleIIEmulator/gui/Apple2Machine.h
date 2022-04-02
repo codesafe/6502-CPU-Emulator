@@ -14,6 +14,7 @@ public:
 	Apple2Device device;
 
 private:
+	bool Booting();
 	bool UploadRom();
 
 public:

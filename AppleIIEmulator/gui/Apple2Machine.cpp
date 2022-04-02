@@ -1,4 +1,5 @@
 
+#include "rombios.h"
 #include "Apple2Machine.h"
 #include "raylib.h"
 
@@ -30,9 +31,21 @@ void Apple2Machine::InitMachine()
 	device.Create(&cpu);
 	mem.device = &device;
 
-	UploadRom();
+	Booting();
+	//UploadRom();	
 }
 
+// 롬을 내장
+bool Apple2Machine::Booting()
+{
+	memcpy(mem.rom, appleIIrom, ROMSIZE);
+	memcpy(mem.sl6, diskII, SL6SIZE);
+	cpu.Reset(mem);
+
+	return true;
+}
+
+// 롬을 파일에서 로딩
 bool Apple2Machine::UploadRom()
 {
 	bool ret = false;

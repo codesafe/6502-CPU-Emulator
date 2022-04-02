@@ -7,7 +7,7 @@
 #include "AppleFont.h"
 #include "raylib.h"
 #include "SDL.h"
-
+#include "dsk2nib.h"
 
 /////////////////////////////////////////////////////////////////////////// 
 
@@ -512,8 +512,7 @@ void Apple2Device::Render(Memory &mem, int frame)
 		// LoRes 저해상도
 		if (hires_Mode == false)
 		{
-			uint16_t vRamBase = videoPage * 0x0400;
-			BYTE lastLine = mixedMode ? 20 : 24;
+			videoAddress = videoPage * 0x0400;
 			BYTE glyph;                                                            // 2 blocks in GR
 			BYTE colorIdx = 0;                                                     // to index the color arrays
 
@@ -521,10 +520,12 @@ void Apple2Device::Render(Memory &mem, int frame)
 			for (int col = 0; col < 40; col++) 
 			{
 				pixelGR.x = col * 7;
-				for (int line = 0; line < lastLine; line++) {                           // for each row
+				// Mixmode이면 하단 4라인은 Text용
+				for (int line = 0; line < (mixedMode ? 20 : 24); line++) 
+				{
 					pixelGR.y = line * 8;                                                 // first block
 
-					glyph = mem.ReadByte(vRamBase + offsetGR[line] + col);                         // read video memory
+					glyph = mem.ReadByte(videoAddress + offsetGR[line] + col);                         // read video memory
 
 					if (LoResCache[line][col] != glyph || !flashCycle) 
 					{
@@ -548,10 +549,10 @@ void Apple2Device::Render(Memory &mem, int frame)
 			BYTE bits[16], bit, pbit, colorSet, even;
 			// PAGE is 1 or 2
 			videoAddress = videoPage * 0x2000;
-			BYTE lastLine = mixedMode ? 160 : 192;
-			BYTE colorIdx = 0;                                                     // to index the color arrays
+			BYTE colorIdx = 0;
 
-			for (int line = 0; line < lastLine; line++) 
+			// Mixmode이면 하단 4라인은 Text용
+			for (int line = 0; line < (mixedMode ? 160 : 192); line++)
 			{
 				// for every 7 horizontal dots
 				for (int col = 0; col < 40; col += 2) 
@@ -562,10 +563,13 @@ void Apple2Device::Render(Memory &mem, int frame)
 					word = (WORD)(mem.ReadByte((videoAddress + offsetHGR[line] + col + 1))) << 8;    // store the two next bytes into 'word'
 					word += mem.ReadByte(videoAddress + offsetHGR[line] + col);              // in reverse order
 
-					if (HiResCache[line][col] != word || !flashCycle) {                   // check if this group of 7 dots need a redraw
+					// check if this group of 7 dots need a redraw
+					if (HiResCache[line][col] != word || !flashCycle) 
+					{
 
 						for (bit = 0; bit < 16; bit++)                                        // store all bits 'word' into 'bits'
 							bits[bit] = (word >> bit) & 1;
+
 						colorSet = bits[7] * 4;                                             // select the right color set
 						pbit = previousBit[line][col];                                      // the bit value of the left dot
 						bit = 0;                                                            // starting at 1st bit of 1st byte
@@ -650,7 +654,7 @@ void Apple2Device::Render(Memory &mem, int frame)
  	pos.x = 300;
  	pos.y = 10;
 	DrawTextureEx(renderTexture, pos, 0, zoomscale, WHITE);
-	DrawRectangleLines(pos.x, pos.y, SCREENSIZE_X*zoomscale, SCREENSIZE_Y*zoomscale, GRAY);
+	DrawRectangleLines((int)pos.x, (int)pos.y, SCREENSIZE_X*zoomscale, SCREENSIZE_Y*zoomscale, GRAY);
 
 	if (++flashCycle == 30)
 		flashCycle = 0;
@@ -660,26 +664,39 @@ void Apple2Device::Render(Memory &mem, int frame)
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // Apple Disk II 
-
-int Apple2Device::InsertFloppy(const char* filename, int drv)
+bool Apple2Device::InsertFloppy(const char* filename, int drv)
 {
-	FILE* f = fopen(filename, "rb");
-	if (!f || fread(disk[drv].data, 1, 232960, f) != 232960)
-		return(0);
-	fclose(f);
+	std::string path = filename;
+	int idx = path.rfind('.');
+	std::string ext = path.substr(idx+1);
 
-	sprintf(disk[drv].filename, "%s", filename);
-
-
-	f = fopen(filename, "ab");
-	if (!f) 
+	if (ext == "nib")
 	{
-		// 쓰기 가능
-		disk[drv].readOnly = true;
+		FILE* f = fopen(filename, "rb");
+		if (!f || fread(disk[drv].data, 1, 232960, f) != 232960)
+			return false;
 		fclose(f);
+
+		sprintf(disk[drv].filename, "%s", filename);
+
+		f = fopen(filename, "ab");
+		if (!f)
+		{
+			// 쓰기 가능
+			disk[drv].readOnly = true;
+			fclose(f);
+		}
+		else
+			disk[drv].readOnly = false;	// 읽기만 가능
+
+		return true;
 	}
-	else 
-		disk[drv].readOnly = false;	// 읽기만 가능
+	else if (ext == "dsk")
+	{
+		// dsk --> nib
+		sprintf(disk[drv].filename, "%s", filename);
+		bool ret = LoadDskFile((char*)filename, disk[drv].data);
+	}
 
 	return(1);
 }
@@ -761,8 +778,8 @@ void Apple2Device::InsetFloppy()
 //	InsertFloppy("rom/karateka.nib", 0);
 //	InsertFloppy("rom/Ultima4-1.nib", 0);
 //	InsertFloppy("rom/Ultima5-1.nib", 0);
-	InsertFloppy("rom/Captain Goodnight-A.nib", 0);
-//	InsertFloppy("rom/Where in the World is Carmen Sandiego1-1.nib", 0);
+//	InsertFloppy("rom/Captain Goodnight-A.nib", 0);
+//	InsertFloppy("rom/Where in the World is Carmen Sandiego-A.nib", 0);
 
 }
 
@@ -1062,4 +1079,9 @@ void Apple2Device::UpdateGamepad()
 void Apple2Device::FileDroped(char* path)
 {
 	InsertFloppy(path, 0);
+}
+
+std::string Apple2Device::GetDiskName(int i)
+{
+	return disk[i].filename;
 }

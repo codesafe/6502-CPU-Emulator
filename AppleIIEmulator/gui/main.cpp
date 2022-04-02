@@ -106,6 +106,13 @@ void DrawPadinfo()
 		DrawText("NO GamePad", 10, 260, fontsize, YELLOW);
 }
 
+void DrawDiskinfo()
+{
+	std::string dsk = "DISK 0 :" + appleplus.device.GetDiskName(0);
+	DrawText(dsk.c_str(), 10, 600, fontsize, YELLOW);
+}
+
+
 std::list<BYTE> opcodestack;
 constexpr int maxopcode = 30;
 void DrawInstruction()
@@ -174,6 +181,7 @@ int main(void)
 		DrawZeroPage();
 		//DrawInstruction();
 		DrawPadinfo();
+		DrawDiskinfo();
 
 		appleplus.Render(frame);
 

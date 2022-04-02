@@ -2,6 +2,7 @@
 #define APPLE2_DEVICE_H
 
 #include <stdio.h>
+#include <string>
 #include "AppleFont.h"
 #include "SDL_joystick.h"
 
@@ -124,7 +125,7 @@ private:
 	BYTE readPaddle(int pdl);
 
 	// DISK2
-	int InsertFloppy(const char* filename, int drv);
+	bool InsertFloppy(const char* filename, int drv);
 	void stepMotor(WORD address);
 	void setDrv(int drv);
 
@@ -154,6 +155,7 @@ public:
 
 	void FileDroped(char* path);
 	bool GetDiskMotorState();
+	std::string GetDiskName(int i);
 };
 
 
