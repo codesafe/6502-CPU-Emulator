@@ -95,11 +95,11 @@ void Apple2Machine::Run(int cycle)
 		cpu.Reboot(mem);
 	}
 
-	if (device.dumpMachine)
-	{
-		DumpMachine();
-		device.dumpMachine = false;
-	}
+// 	if (device.dumpMachine)
+// 	{
+// 		DumpMachine();
+// 		device.dumpMachine = false;
+// 	}
 
 	if (device.loaddumpmachine)
 	{

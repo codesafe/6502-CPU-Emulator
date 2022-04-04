@@ -6,11 +6,23 @@
 #include "Apple2Machine.h"
 #include "raylib.h"
 
+
+#define RAYGUI_IMPLEMENTATION
+#include "raygui.h"
+
+
+#undef RAYGUI_IMPLEMENTATION            // Avoid including raygui implementation again
+#define GUI_FILE_DIALOG_IMPLEMENTATION
+#include "gui_file_dialog.h"
+
+
+
 #include <string>
 #include <format>
 #include <list>
 
 Apple2Machine appleplus;
+int frame = 0;
 
 std::string format_string(const std::string fmt, ...) 
 {
@@ -139,27 +151,119 @@ void DrawInstruction()
 	}
 }
 
+
+//////////////////////////////////////////////////////////////////////////
+
+void RenderGame()
+{
+	ClearBackground(BLACK);
+
+	bool diskmotoron = appleplus.device.GetDiskMotorState();
+	std::string disk = format_string("DISK MOTOR : %s", diskmotoron ? "ON" : "OFF");
+	DrawText(disk.c_str(), 10, 280, 10, GREEN);
+
+	DrawRegistor();
+	DrawFlags();
+	DrawZeroPage();
+	//DrawInstruction();
+	DrawPadinfo();
+	DrawDiskinfo();
+
+	appleplus.Render(frame);
+
+}
+
+GuiFileDialogState fileDialogState = InitGuiFileDialog(420, 310, GetWorkingDirectory(), false);
+char fileNameToLoad[512] = { 0 };
+char savefilename[256] = { 0 };
+
+void RenderGUIMenu()
+{
+	
+	if (appleplus.device.loadromfile)
+	{
+		//appleplus.device.loadromfile = false;
+		DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Fade(RAYWHITE, 0.8f));
+
+		Rectangle rec{ GetScreenWidth() / 2 - 120, GetScreenHeight() / 2 - 60, 240, 140 };
+		int result = GuiTextInputBox(rec, "Save", "Enter Dump File name", "Ok;Cancel", savefilename, 256, NULL);
+		//int result = GuiTextInputBox(rec, "Save", GuiIconText(RAYGUI_ICON_FILE_SAVE, "Save file as..."), "Introduce a save file name", "Ok;Cancel", textInput, NULL);
+		if (result == 1)
+		{
+			// TODO: Validate textInput value and save
+
+			//strcpy(textInputFileName, textInput);
+		}
+
+		if ((result == 0) || (result == 1) || (result == 2))
+		{
+			appleplus.device.loadromfile = false;
+			//strcpy(textInput, "\0");
+		}
+	}
+
+/*
+
+	if (appleplus.device.dumpMachine)
+	{
+		appleplus.device.dumpMachine = false;
+		fileDialogState.fileDialogActive = true;
+	}
+
+
+	if (fileDialogState.fileDialogActive)
+		GuiLock();
+
+	GuiUnlock();
+	GuiFileDialog(&fileDialogState);
+*/
+
+}
+
+
 int main(void)
 {
 	const int windowWidth = 1280;
 	const int windowHeight = 720;
 
-	SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_VSYNC_HINT);
-	InitWindow(windowWidth, windowHeight, "APPLE II Plus Emulator");
+	SetConfigFlags(/*FLAG_WINDOW_RESIZABLE | */FLAG_VSYNC_HINT);
+	InitWindow(windowWidth, windowHeight, "APPLE II+ Emulator");
 	//SetWindowMinSize(320, 240);
 
 	SetTargetFPS(TARGET_FRAME);
 	SetTraceLogLevel(LOG_ERROR);
-	SetExitKey(KEY_F12);
+	SetExitKey(KEY_KP_ENTER);
 
 	appleplus.InitMachine();
 
-	int frame = 0;
+
 	int dropfilecount = 0;
 	char** droppedFiles = { 0 };
 
-	while (!WindowShouldClose())
+	bool exitWindow = false;
+	bool showMessageBox = false;
+
+
+
+	while (!exitWindow)
 	{
+		exitWindow = WindowShouldClose();
+		if (IsKeyPressed(KEY_ESCAPE)) 
+			showMessageBox = !showMessageBox;
+
+		if (fileDialogState.SelectFilePressed)
+		{
+			if (IsFileExtension(fileDialogState.fileNameText, ".dmp"))
+			{
+				strcpy(fileNameToLoad, TextFormat("%s/%s", fileDialogState.dirPathText, fileDialogState.fileNameText));
+
+			}
+
+			fileDialogState.SelectFilePressed = false;
+		}
+
+
+
 		if (IsFileDropped())
 		{
 			droppedFiles = GetDroppedFiles(&dropfilecount);
@@ -177,25 +281,29 @@ int main(void)
 		long long p = 17050;
 		appleplus.Run((int)p);
 
+
 		BeginDrawing();
-		ClearBackground(BLACK);
+		RenderGame();
 
-		bool diskmotoron = appleplus.device.GetDiskMotorState();
-		std::string disk = format_string("DISK MOTOR : %s", diskmotoron ? "ON" : "OFF");
-		DrawText(disk.c_str(), 10, 280, 10, GREEN);
+		RenderGUIMenu();
 
-		DrawRegistor();
-		DrawFlags();
-		DrawZeroPage();
-		//DrawInstruction();
-		DrawPadinfo();
-		DrawDiskinfo();
+		if (showMessageBox)
+		{
+			DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Fade(RAYWHITE, 0.8f));
+			Rectangle rec {GetScreenWidth() / 2 - 125, GetScreenHeight() / 2 - 50, 250, 100 };
+			int result = GuiMessageBox(rec , GuiIconText(RAYGUI_ICON_EXIT, "Close Window"), "Do you really want to exit?", "Yes;No");
+			if ((result == 0) || (result == 2)) 
+				showMessageBox = false;
+			else 
+				if (result == 1) 
+					exitWindow = true;
+		}
 
-		appleplus.Render(frame);
 
 		EndDrawing();
 
-		if (frame++ > TARGET_FRAME) frame = 0;
+		if (frame++ > TARGET_FRAME) 
+			frame = 0;
 	}
 
 	CloseWindow();

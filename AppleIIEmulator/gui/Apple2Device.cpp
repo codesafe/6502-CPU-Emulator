@@ -80,6 +80,8 @@ void Apple2Device::Create(CPU* cpu)
 
 	loaddumpmachine = false;
 	dumpMachine = false;
+	loadromfile = false;
+
 	resetMachine = false;
 	colorMonitor = true;
 	keyboard = 0;
@@ -825,40 +827,32 @@ void Apple2Device::UpdateKeyBoard()
 
 	switch (key)
 	{
-		// 		case KEY_A:            keyboard = 0xC1;   break;
-		// 		case KEY_B:            keyboard = 0xC2;   break;
-		// 		case KEY_C:            keyboard = 0xC3;   break;
-		// 		case KEY_D:            keyboard = 0xC4;   break;
-		// 		case KEY_E:            keyboard = 0xC5;   break;
-		// 		case KEY_F:            keyboard = 0xC6;   break;
-		// 		case KEY_G:            keyboard = 0xC7;   break;
-		// 		case KEY_H:            keyboard = 0xC8;   break;
-		// 		case KEY_I:            keyboard = 0xC9;   break;
-		// 		case KEY_J:            keyboard = 0xCA;   break;
-		// 		case KEY_K:            keyboard = 0xCB;   break;
-		// 		case KEY_L:            keyboard = 0xCC;   break;
-		// 		case KEY_M:            keyboard = 0xCD;   break;
-		// 		case KEY_N:            keyboard = 0xCE;   break;
-		// 		case KEY_O:            keyboard = 0xCF;   break;
-		// 		case KEY_P:            keyboard = 0xD0;   break;
-		// 		case KEY_Q:            keyboard = 0xD1;   break;
-		// 		case KEY_R:            keyboard = 0xD2;   break;
-		// 		case KEY_S:            keyboard = 0xD3;   break;
-		// 		case KEY_T:            keyboard = 0xD4;   break;
-		// 		case KEY_U:            keyboard = 0xD5;   break;
-		// 		case KEY_V:            keyboard = 0xD6;   break;
-		// 		case KEY_W:            keyboard = 0xD7;   break;
-		// 		case KEY_X:            keyboard = 0xD8;   break;
-		// 		case KEY_Y:            keyboard = 0xD9;   break;
-		// 		case KEY_Z:            keyboard = 0xDA;   break;
-	case KEY_A:		case KEY_B:		case KEY_C:		case KEY_D:		case KEY_E:
-	case KEY_F:		case KEY_G:		case KEY_H:		case KEY_I:		case KEY_J:
-	case KEY_K:		case KEY_L:		case KEY_M:		case KEY_N:		case KEY_O:
-	case KEY_P:		case KEY_Q:		case KEY_R:		case KEY_S:		case KEY_T:
-	case KEY_U:		case KEY_V:		case KEY_W:		case KEY_X:		case KEY_Y:
-	case KEY_Z:
-		keyboard = key - 0x80;
-		break;
+	case KEY_A:            keyboard = 0xC1;   break;
+	case KEY_B:            keyboard = 0xC2;   break;
+	case KEY_C:            keyboard = 0xC3;   break;
+	case KEY_D:            keyboard = 0xC4;   break;
+	case KEY_E:            keyboard = 0xC5;   break;
+	case KEY_F:            keyboard = 0xC6;   break;
+	case KEY_G:            keyboard = 0xC7;   break;
+	case KEY_H:            keyboard = 0xC8;   break;
+	case KEY_I:            keyboard = 0xC9;   break;
+	case KEY_J:            keyboard = 0xCA;   break;
+	case KEY_K:            keyboard = 0xCB;   break;
+	case KEY_L:            keyboard = 0xCC;   break;
+	case KEY_M:            keyboard = 0xCD;   break;
+	case KEY_N:            keyboard = 0xCE;   break;
+	case KEY_O:            keyboard = 0xCF;   break;
+	case KEY_P:            keyboard = 0xD0;   break;
+	case KEY_Q:            keyboard = 0xD1;   break;
+	case KEY_R:            keyboard = 0xD2;   break;
+	case KEY_S:            keyboard = 0xD3;   break;
+	case KEY_T:            keyboard = 0xD4;   break;
+	case KEY_U:            keyboard = 0xD5;   break;
+	case KEY_V:            keyboard = 0xD6;   break;
+	case KEY_W:            keyboard = 0xD7;   break;
+	case KEY_X:            keyboard = 0xD8;   break;
+	case KEY_Y:            keyboard = 0xD9;   break;
+	case KEY_Z:            keyboard = 0xDA;   break;
 
 	case KEY_ZERO:			keyboard = shift ? 0xA9 : 0xB0; break;             // 0 )
 	case KEY_ONE:			keyboard = shift ? 0xA1 : 0xB1; break;             // 1 !
@@ -910,6 +904,10 @@ void Apple2Device::UpdateKeyBoard()
 		// MUTE Speaker
 	case KEY_F4:
 		silence = !silence;
+		break;
+
+	case KEY_F9:
+		loadromfile = true;
 		break;
 
 	case KEY_F10:

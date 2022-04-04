@@ -58,6 +58,7 @@ class Apple2Device
 public:
 	bool loaddumpmachine;
 	bool dumpMachine;
+	bool loadromfile;
 
 	bool resetMachine;
 	bool colorMonitor;
