@@ -26,8 +26,8 @@ public:
 	void Render(int frame);
 	void FileDroped(char* path);
 
-	void LoadMachine();
-	void DumpMachine();
+	void LoadMachine(std::string path);
+	void DumpMachine(std::string path);
 };
 
 

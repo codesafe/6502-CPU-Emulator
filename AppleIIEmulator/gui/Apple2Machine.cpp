@@ -95,19 +95,6 @@ void Apple2Machine::Run(int cycle)
 		cpu.Reboot(mem);
 	}
 
-// 	if (device.dumpMachine)
-// 	{
-// 		DumpMachine();
-// 		device.dumpMachine = false;
-// 	}
-
-	if (device.loaddumpmachine)
-	{
-		LoadMachine();
-		device.loaddumpmachine = false;
-		return;
-	}
-
 	device.UpdateInput();
 	cpu.Run(mem, cycle);
 	while (1)
@@ -129,9 +116,10 @@ void Apple2Machine::FileDroped(char* path)
 }
 
 // DUMP파일을 로드하여 재개
-void Apple2Machine::LoadMachine()
+void Apple2Machine::LoadMachine(std::string path)
 {
-	FILE* fp = fopen("appleIIdump.dmp", "rb");
+	//FILE* fp = fopen("appleIIdump.dmp", "rb");
+	FILE* fp = fopen(path.c_str(), "rb");
 	if (fp != NULL)
 	{
 		mem.LoadDump(fp);
@@ -142,9 +130,11 @@ void Apple2Machine::LoadMachine()
 }
 
 // 현재의 모든 상태를 저장
-void Apple2Machine::DumpMachine()
+void Apple2Machine::DumpMachine(std::string path)
 {
-	FILE* fp = fopen("appleIIdump.dmp", "wb");
+	path += ".dmp";
+
+	FILE* fp = fopen(path.c_str(), "wb");
 
 	mem.Dump(fp);
 	cpu.Dump(fp);

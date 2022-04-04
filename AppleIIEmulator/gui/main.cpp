@@ -127,10 +127,11 @@ void DrawDiskinfo()
 	DrawText("F2 : MONO <---> COLOR", 10, 635, fontsize, GREEN);
 	DrawText("F3 : ZOOM", 10, 650, fontsize, GREEN);
 	DrawText("F4 : MUTE", 10, 665, fontsize, GREEN);
-	DrawText("F12 : QUIT", 10, 680, fontsize, GREEN);
 
-	DrawText("F10 : SAVE SNAPSHOT", 200, 620, fontsize, YELLOW);
-	DrawText("F11 : LOAD SNAPSHOT", 200, 635, fontsize, YELLOW);
+	DrawText("F09 : LOAD ROM (NIB, DSK)", 200, 620, fontsize, YELLOW);
+	DrawText("F10 : SAVE SNAPSHOT", 200, 635, fontsize, YELLOW);
+	DrawText("F11 : LOAD SNAPSHOT", 200, 650, fontsize, YELLOW);
+	DrawText("ESC : QUIT", 200, 665, fontsize, ORANGE);
 }
 
 
@@ -170,56 +171,86 @@ void RenderGame()
 	DrawDiskinfo();
 
 	appleplus.Render(frame);
-
 }
 
-GuiFileDialogState fileDialogState = InitGuiFileDialog(420, 310, GetWorkingDirectory(), false);
-char fileNameToLoad[512] = { 0 };
+GuiFileDialogState loadDumpDialog;
+GuiFileDialogState loadRomDialog;
 char savefilename[256] = { 0 };
 
-void RenderGUIMenu()
+void LoadDumpFile()
 {
-	
-	if (appleplus.device.loadromfile)
+	if (loadDumpDialog.SelectFilePressed)
 	{
-		//appleplus.device.loadromfile = false;
+		if (IsFileExtension(loadDumpDialog.fileNameText, ".dmp"))
+		{
+			char fileNameToLoad[512] = { 0 };
+			strcpy(fileNameToLoad, TextFormat("%s/%s", loadDumpDialog.dirPathText, loadDumpDialog.fileNameText));
+
+			appleplus.LoadMachine(fileNameToLoad);
+
+		}
+
+		loadDumpDialog.SelectFilePressed = false;
+		appleplus.device.loaddumpmachine = false;
+	}
+
+	if (appleplus.device.loaddumpmachine)
+	{
+		//appleplus.device.loaddumpmachine = false;
+		loadDumpDialog.fileDialogActive = true;
+	}
+
+	GuiFileDialog(&loadDumpDialog);
+}
+
+void SaveDumpFile()
+{
+	// Dump	
+	if (appleplus.device.dumpMachine)
+	{
 		DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Fade(RAYWHITE, 0.8f));
 
 		Rectangle rec{ GetScreenWidth() / 2 - 120, GetScreenHeight() / 2 - 60, 240, 140 };
 		int result = GuiTextInputBox(rec, "Save", "Enter Dump File name", "Ok;Cancel", savefilename, 256, NULL);
-		//int result = GuiTextInputBox(rec, "Save", GuiIconText(RAYGUI_ICON_FILE_SAVE, "Save file as..."), "Introduce a save file name", "Ok;Cancel", textInput, NULL);
 		if (result == 1)
-		{
-			// TODO: Validate textInput value and save
-
-			//strcpy(textInputFileName, textInput);
-		}
+			appleplus.DumpMachine(savefilename);
 
 		if ((result == 0) || (result == 1) || (result == 2))
-		{
-			appleplus.device.loadromfile = false;
-			//strcpy(textInput, "\0");
-		}
+			appleplus.device.dumpMachine = false;
 	}
-
-/*
-
-	if (appleplus.device.dumpMachine)
-	{
-		appleplus.device.dumpMachine = false;
-		fileDialogState.fileDialogActive = true;
-	}
-
-
-	if (fileDialogState.fileDialogActive)
-		GuiLock();
-
-	GuiUnlock();
-	GuiFileDialog(&fileDialogState);
-*/
-
 }
 
+void LoadRomFile()
+{
+	if (loadRomDialog.SelectFilePressed)
+	{
+		if (IsFileExtension(loadRomDialog.fileNameText, ".nib;.dsk"))
+		{
+			char fileNameToLoad[512] = { 0 };
+			strcpy(fileNameToLoad, TextFormat("%s/%s", loadRomDialog.dirPathText, loadRomDialog.fileNameText));
+			appleplus.FileDroped(fileNameToLoad);
+		}
+
+		loadRomDialog.SelectFilePressed = false;
+		appleplus.device.loadromfile = false;
+	}
+
+	if (appleplus.device.loadromfile)
+	{
+		//appleplus.device.loadromfile = false;
+		loadRomDialog.fileDialogActive = true;
+	}
+
+	GuiFileDialog(&loadRomDialog);
+}
+
+void RenderGUIMenu()
+{
+	LoadRomFile();
+	SaveDumpFile();
+	LoadDumpFile();
+
+}
 
 int main(void)
 {
@@ -232,10 +263,9 @@ int main(void)
 
 	SetTargetFPS(TARGET_FRAME);
 	SetTraceLogLevel(LOG_ERROR);
-	SetExitKey(KEY_KP_ENTER);
+	SetExitKey(0);
 
 	appleplus.InitMachine();
-
 
 	int dropfilecount = 0;
 	char** droppedFiles = { 0 };
@@ -243,26 +273,15 @@ int main(void)
 	bool exitWindow = false;
 	bool showMessageBox = false;
 
-
+	loadDumpDialog = InitGuiFileDialog(-1, 600, GetWorkingDirectory(), false);
+	loadRomDialog = InitGuiFileDialog(-1, 600, GetWorkingDirectory(), false);
+	//strcpy(fileDialogState.filterExt, ".dmp");
 
 	while (!exitWindow)
 	{
 		exitWindow = WindowShouldClose();
 		if (IsKeyPressed(KEY_ESCAPE)) 
 			showMessageBox = !showMessageBox;
-
-		if (fileDialogState.SelectFilePressed)
-		{
-			if (IsFileExtension(fileDialogState.fileNameText, ".dmp"))
-			{
-				strcpy(fileNameToLoad, TextFormat("%s/%s", fileDialogState.dirPathText, fileDialogState.fileNameText));
-
-			}
-
-			fileDialogState.SelectFilePressed = false;
-		}
-
-
 
 		if (IsFileDropped())
 		{
@@ -278,13 +297,17 @@ int main(void)
 // 		DrawText(f.c_str(), 10,300, 20, MAGENTA);
 		//long long p = (long long)(1023000.0 / fps);	// 1.023MHz
 
-		long long p = 17050;
-		appleplus.Run((int)p);
-
+		if (!appleplus.device.dumpMachine &&
+			!appleplus.device.loaddumpmachine &&
+			!appleplus.device.loadromfile)
+		{
+			long long p = 17050;
+			appleplus.Run((int)p);
+		}
 
 		BeginDrawing();
-		RenderGame();
 
+		RenderGame();
 		RenderGUIMenu();
 
 		if (showMessageBox)
@@ -299,7 +322,6 @@ int main(void)
 					exitWindow = true;
 		}
 
-
 		EndDrawing();
 
 		if (frame++ > TARGET_FRAME) 
@@ -307,6 +329,5 @@ int main(void)
 	}
 
 	CloseWindow();
-
 	return 0;
 }
