@@ -22,10 +22,7 @@ void Memory::Create()
 	memory = new BYTE[MEMORY_SIZE];
 	memset(memory, 0, MEMORY_SIZE);
 #else
-	LCWritable = true;
-	LCReadable = false;
-	LCBank2Enable = true;
-	LCPreWriteFlipflop = false;
+	Reset();
 #endif
 }
 
@@ -36,6 +33,21 @@ void Memory::Destroy()
 	memory = NULL;
 #endif
 }
+
+void Memory::Reset()
+{
+	LCWritable = true;
+	LCReadable = false;
+	LCBank2Enable = true;
+	LCPreWriteFlipflop = false;
+
+	memset(ram, 0, RAMSIZE);
+	memset(rom, 0, ROMSIZE);
+	memset(lgc, 0, LGCSIZE);
+	memset(bk2, 0, BK2SIZE);
+	memset(sl6, 0, SL6SIZE);
+}
+
 
 BYTE Memory::ReadByte(int address)
 {

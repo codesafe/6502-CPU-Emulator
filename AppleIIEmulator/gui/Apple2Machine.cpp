@@ -87,12 +87,27 @@ bool Apple2Machine::UploadRom()
 	return ret;
 }
 
+void Apple2Machine::Reset()
+{
+	mem.Reset();
+	cpu.Reboot(mem);
+	device.Reset();
+
+	// unset the Power-UP byte
+	mem.WriteByte(0x3F4, 0);
+	// dirty hack, fix soon... if I understand why
+	mem.WriteByte(0x4D, 0xAA);   // Joust crashes if this memory location equals zero
+	mem.WriteByte(0xD0, 0xAA);   // Planetoids won't work if this memory location equals zero
+
+	Booting();
+}
+
 void Apple2Machine::Run(int cycle)
 {
 	if (device.resetMachine)
 	{
-		device.resetMachine = false;
-		cpu.Reboot(mem);
+		Reset();
+		return;
 	}
 
 	device.UpdateInput();
@@ -101,7 +116,7 @@ void Apple2Machine::Run(int cycle)
 	{
 		if( device.UpdateFloppyDisk() == false ) 
 			break;
-		cpu.Run(mem, 5000);
+		cpu.Run(mem, 10000);
 	}
 }
 

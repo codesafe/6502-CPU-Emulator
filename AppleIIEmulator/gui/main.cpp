@@ -210,7 +210,7 @@ void SaveDumpFile()
 	{
 		DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Fade(RAYWHITE, 0.8f));
 
-		Rectangle rec{ GetScreenWidth() / 2 - 120, GetScreenHeight() / 2 - 60, 240, 140 };
+		Rectangle rec { (float)(GetScreenWidth()/2-120), (float)(GetScreenHeight()/2-60), 240.f, 140.f };
 		int result = GuiTextInputBox(rec, "Save", "Enter Dump File name", "Ok;Cancel", savefilename, 256, NULL);
 		if (result == 1)
 			appleplus.DumpMachine(savefilename);
@@ -301,7 +301,7 @@ int main(void)
 			!appleplus.device.loaddumpmachine &&
 			!appleplus.device.loadromfile)
 		{
-			long long p = 17050;
+			long long p = 17050;// *1.2f;
 			appleplus.Run((int)p);
 		}
 
@@ -313,7 +313,7 @@ int main(void)
 		if (showMessageBox)
 		{
 			DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Fade(RAYWHITE, 0.8f));
-			Rectangle rec {GetScreenWidth() / 2 - 125, GetScreenHeight() / 2 - 50, 250, 100 };
+			Rectangle rec { (float)(GetScreenWidth()/2-125), (float)(GetScreenHeight()/2-50), 250.f, 100.f };
 			int result = GuiMessageBox(rec , GuiIconText(RAYGUI_ICON_EXIT, "Close Window"), "Do you really want to exit?", "Yes;No");
 			if ((result == 0) || (result == 2)) 
 				showMessageBox = false;

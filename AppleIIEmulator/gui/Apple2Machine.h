@@ -22,6 +22,7 @@ public:
 	~Apple2Machine();
 
 	void InitMachine();
+	void Reset();
 	void Run(int cycle);
 	void Render(int frame);
 	void FileDroped(char* path);

@@ -62,12 +62,14 @@ const int hcolor[16][3] = {                                                   //
 Apple2Device::Apple2Device()
 {
 	backbuffer = NULL;
+	Reset();
 }
 
 Apple2Device::~Apple2Device()
 {
 	if (backbuffer != NULL)
 		delete[] backbuffer;
+
 
 	SDL_AudioQuit();
 	SDL_JoystickClose(gamepad.controller);
@@ -77,7 +79,45 @@ Apple2Device::~Apple2Device()
 void Apple2Device::Create(CPU* cpu)
 {
 	this->cpu = cpu;
+	font.Create();
+	zoomscale = 3;
+	volume = 5;
 
+	// 스크린 백버퍼
+	backbuffer = new Color[SCREENSIZE_X * SCREENSIZE_Y];
+	ClearScreen();
+
+	renderImage.data = backbuffer;
+	renderImage.width = SCREENSIZE_X;
+	renderImage.height = SCREENSIZE_Y;
+	renderImage.format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
+	renderImage.mipmaps = 1;
+	renderTexture = LoadTextureFromImage(renderImage);
+
+	// SOUND만 SDL
+	if (SDL_Init(SDL_INIT_AUDIO | SDL_INIT_JOYSTICK) < 0)
+		printf("failed to initialize SDL2 : %s", SDL_GetError());
+
+	SDL_AudioSpec desired = { 96000, AUDIO_S8, 1, 0, 4096, 0, 0, NULL, NULL };
+	audioDevice = SDL_OpenAudioDevice(NULL, 0, &desired, NULL, SDL_FALSE);
+	SDL_PauseAudioDevice(audioDevice, silence);
+
+	for (int i = 0; i < AUDIOBUFFERSIZE; i++)
+	{
+		audioBuffer[0][i] = volume;
+		audioBuffer[1][i] = -volume;
+	}
+
+	//////////////////////////////////////////////////////////////////////////
+
+	// Gamepad
+	gamepad.controller = SDL_JoystickOpen(0);
+	if (gamepad.controller != NULL)
+		gamepad.isavailable = true;
+}
+
+void Apple2Device::Reset()
+{
 	loaddumpmachine = false;
 	dumpMachine = false;
 	loadromfile = false;
@@ -88,14 +128,10 @@ void Apple2Device::Create(CPU* cpu)
 
 	pixelGR = { 0, 0, 7, 4 };
 
-	zoomscale = 3;
-	font.Create();
-
 	silence = false;
 	speaker = false;
 	speakerLastTick = 0;
-	volume = 5;
-	
+
 	// DISK ][
 	updatedrive = 0;
 	currentDrive = 0;
@@ -112,19 +148,19 @@ void Apple2Device::Create(CPU* cpu)
 	////////////////////////////////////////////////////////////////////////// GAMEPAD
 	// 
 	// 패들 초기화
-	GCP[0] = 127.0f; 
+	GCP[0] = 127.0f;
 	GCP[1] = 127.0f;
-	GCC[0] = 0; 
+	GCC[0] = 0;
 	GCC[1] = 0;
-	GCD[0] = 0; 
+	GCD[0] = 0;
 	GCD[1] = 0;
-	GCA[0] = 0; 
+	GCA[0] = 0;
 	GCA[1] = 0;
 	GCActionSpeed = 64;
 	GCReleaseSpeed = 64;
 
 	////////////////////////////////////////////////////////////////////////// VIDEO
-	
+
 	textMode = true;
 	mixedMode = false;
 	videoPage = 1;
@@ -134,40 +170,7 @@ void Apple2Device::Create(CPU* cpu)
 	memset(LoResCache, 0, sizeof(LoResCache));
 	memset(HiResCache, 0, sizeof(HiResCache));
 	memset(previousBit, 0, sizeof(previousBit));
-	flashCycle = 0;                                                       // TEXT cursor flashes at 2Hz
-
-	// 스크린 백버퍼
-	backbuffer = new Color[SCREENSIZE_X * SCREENSIZE_Y];
-	ClearScreen();
-
-	renderImage.data = backbuffer;
-	renderImage.width = SCREENSIZE_X;
-	renderImage.height = SCREENSIZE_Y;
-	renderImage.format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
-	renderImage.mipmaps = 1;
-	renderTexture = LoadTextureFromImage(renderImage);
-
-	//////////////////////////////////////////////////////////////////////////
-
-	// SOUND만 SDL
-	if (SDL_Init(SDL_INIT_AUDIO | SDL_INIT_JOYSTICK) < 0)
-		printf("failed to initialize SDL2 : %s", SDL_GetError());
-
-	SDL_AudioSpec desired = { 96000, AUDIO_S8, 1, 0, 4096, 0, 0, NULL, NULL };
-	audioDevice = SDL_OpenAudioDevice(NULL, 0, &desired, NULL, SDL_FALSE);
-	SDL_PauseAudioDevice(audioDevice, silence);
-
-	for (int i = 0; i < AUDIOBUFFERSIZE; i++)
-	{
-		audioBuffer[0][i] = volume;
-		audioBuffer[1][i] = -volume;
-	}
-
-	// Gamepad
-	gamepad.controller = SDL_JoystickOpen(0);
-	if (gamepad.controller != NULL)
-		gamepad.isavailable = true;
-
+	flashCycle = 0;
 }
 
 void Apple2Device::resetPaddles()
@@ -223,24 +226,24 @@ BYTE Apple2Device::SoftSwitch(Memory *mem, WORD address, BYTE value, bool WRT)
 
 		case 0xC050: 
 			textMode = false; 
-			printf("Text Mode Off\n");
+			//printf("Text Mode Off\n");
 			break;
 		// Text
 		case 0xC051: 
 			textMode = true;  
-			printf("Text Mode On\n");
+			//printf("Text Mode On\n");
 			break;
 
 		// Mixed off
 		case 0xC052: 
 			mixedMode = false; 
-			printf("Mixed Mode Off\n");
+			//printf("Mixed Mode Off\n");
 			break;
 
 		// Mixed on
 		case 0xC053: 
 			mixedMode = true;  
-			printf("Mixed Mode On\n");
+			//printf("Mixed Mode On\n");
 			break;
 
 		// Page 1
@@ -257,12 +260,12 @@ BYTE Apple2Device::SoftSwitch(Memory *mem, WORD address, BYTE value, bool WRT)
 		// HiRes off
 		case 0xC056: 
 			hires_Mode = false; 
-			printf("HIRES Mode Off\n");
+			//printf("HIRES Mode Off\n");
 			break;
 		// HiRes on
 		case 0xC057: 
 			hires_Mode = true;  
-			printf("HIRES Mode On\n");
+			//printf("HIRES Mode On\n");
 			break;
 
 		/////////////////////////////////////////////////////////////////////////////////	Joy Paddle ?
@@ -401,45 +404,59 @@ BYTE Apple2Device::SoftSwitch(Memory *mem, WORD address, BYTE value, bool WRT)
 
 		///////////////////////////////////////////////////////////////////////////////// LANGUAGE CARD
 
-		case 0xC080:                                                                // LANGUAGE CARD :
+		case 0xC080: 
 		case 0xC084: 
-			mem->LCBank2Enable = 1; mem->LCReadable = 1; mem->LCWritable = 0;
+			mem->LCBank2Enable = 1; 
+			mem->LCReadable = 1; 
+			mem->LCWritable = 0;
 			mem->LCPreWriteFlipflop = 0;    
 			break;       // LC2RD
 
 		case 0xC081:
 		case 0xC085: 
-			mem->LCBank2Enable = 1; mem->LCReadable = 0; mem->LCWritable |= mem->LCPreWriteFlipflop; 
+			mem->LCBank2Enable = 1;
+			mem->LCReadable = 0; 
+			mem->LCWritable |= mem->LCPreWriteFlipflop; 
 			mem->LCPreWriteFlipflop = !WRT; 
 			break;       // LC2WR
 
 		case 0xC082:
 		case 0xC086: 
-			mem->LCBank2Enable = 1; mem->LCReadable = 0; mem->LCWritable = 0;
+			mem->LCBank2Enable = 1;
+			mem->LCReadable = 0;
+			mem->LCWritable = 0;
 			mem->LCPreWriteFlipflop = 0;    
 			break;       // ROMONLY2
 
 		case 0xC083:
 		case 0xC087: 
-			mem->LCBank2Enable = 1; mem->LCReadable = 1; mem->LCWritable |= mem->LCPreWriteFlipflop; 
+			mem->LCBank2Enable = 1;
+			mem->LCReadable = 1;
+			mem->LCWritable |= mem->LCPreWriteFlipflop; 
 			mem->LCPreWriteFlipflop = !WRT; 
 			break;       // LC2RW
 
 		case 0xC088:
 		case 0xC08C: 
-			mem->LCBank2Enable = 0; mem->LCReadable = 1; mem->LCWritable = 0;
+			mem->LCBank2Enable = 0;
+			mem->LCReadable = 1; 
+			mem->LCWritable = 0;
 			mem->LCPreWriteFlipflop = 0;    
 			break;       // LC1RD
 
 		case 0xC089:
 		case 0xC08D: 
-			mem->LCBank2Enable = 0; mem->LCReadable = 0; mem->LCWritable |= mem->LCPreWriteFlipflop; 
+			mem->LCBank2Enable = 0; 
+			mem->LCReadable = 0; 
+			mem->LCWritable |= mem->LCPreWriteFlipflop; 
 			mem->LCPreWriteFlipflop = !WRT; 
 			break;       // LC1WR
 
 		case 0xC08A:
 		case 0xC08E: 
-			mem->LCBank2Enable = 0; mem->LCReadable = 0; mem->LCWritable = 0; 
+			mem->LCBank2Enable = 0; 
+			mem->LCReadable = 0; 
+			mem->LCWritable = 0; 
 			mem->LCPreWriteFlipflop = 0;    
 			break;       // ROMONLY1
 

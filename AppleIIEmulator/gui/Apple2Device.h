@@ -159,6 +159,7 @@ public:
 	~Apple2Device();
 
 	void Create(CPU* cpu);
+	void Reset();
 	void Dump(FILE* fp);
 	void LoadDump(FILE* fp);
 

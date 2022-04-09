@@ -28,6 +28,7 @@ class Memory
 
 		void Create();
 		void Destroy();
+		void Reset();
 
 		BYTE ReadByte(int addr);
 		void WriteByte(int addr, BYTE value);
